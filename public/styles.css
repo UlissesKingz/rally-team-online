@@ -1,0 +1,422 @@
+:root{
+  --bg:#0d1012;--panel:#171b1e;--panel2:#202529;--line:#30363b;--text:#f4f1e8;--muted:#aeb5b9;--accent:#f0a33a;--accent2:#ffd07a;--danger:#ff6e67;
+  --blue:#48a7ff;--red:#ff6262;--green:#50c987;--yellow:#f4cf4f;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(circle at 50% -10%,#282e32 0,#111517 40%,#090b0d 100%);color:var(--text)}body{min-height:100vh}button,input{font:inherit}button,a{touch-action:manipulation}button{cursor:pointer}a{color:inherit;text-decoration:none}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.15;background-image:linear-gradient(90deg,transparent 49.7%,rgba(255,255,255,.025) 50%,transparent 50.3%),linear-gradient(0deg,transparent 49.7%,rgba(255,255,255,.018) 50%,transparent 50.3%);background-size:160px 160px}
+.brand-lockup,.brand-inline{display:flex;align-items:center;gap:10px}.brand-lockup>div{display:flex;flex-direction:column;line-height:1}.brand-lockup strong{font-size:18px;letter-spacing:.04em}.brand-lockup small{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:.16em;text-transform:uppercase}.brand-mark{width:46px;height:46px;border:2px solid var(--accent2);border-radius:50%;display:grid;place-items:center;font-weight:900;letter-spacing:-.06em;background:#16191b;box-shadow:inset 0 0 0 4px #0f1113}.brand-mark.small{width:34px;height:34px;font-size:13px}
+.entry-shell,.lobby-shell,.result-shell,.game-shell{min-height:100vh;padding:22px}.entry-shell{display:grid;grid-template-rows:auto 1fr auto}.entry-top,.game-topbar,.manual-head{display:flex;align-items:center;justify-content:space-between;gap:18px;max-width:1440px;width:100%;margin:0 auto}.top-actions{display:flex;gap:8px;flex-wrap:wrap}.top-action{border:1px solid var(--line);background:#15191c;color:var(--text);padding:9px 12px;border-radius:10px;font-size:13px}.top-action:hover{border-color:#596168}.danger-link{color:#ffb4af}.room-pill{border:1px solid var(--line);padding:8px 14px;border-radius:999px;color:var(--muted)}.room-pill strong{color:var(--text);letter-spacing:.12em}
+.entry-card,.lobby-card,.result-card,.device-card,.manual-content{border:1px solid #343a3f;background:linear-gradient(180deg,rgba(28,33,36,.98),rgba(18,21,23,.98));box-shadow:0 28px 80px rgba(0,0,0,.35);border-radius:24px}.entry-card{width:min(620px,100%);padding:34px;margin:auto}.eyebrow{text-transform:uppercase;letter-spacing:.16em;color:var(--accent2);font-size:11px;font-weight:800;margin:0 0 10px}.entry-card h1,.lobby-card h1,.result-card h1,.manual-content h1{font-size:clamp(30px,5vw,52px);line-height:.98;margin:0 0 14px}.lead{font-size:17px;line-height:1.6;color:#d0d5d8;max-width:55ch}.entry-card label,.entry-card fieldset{display:block;margin:20px 0}.entry-card label{font-size:13px;color:#d5dade}.entry-card input{width:100%;margin-top:7px;padding:13px 14px;border-radius:12px;border:1px solid #3b4247;background:#0e1113;color:var(--text);outline:none}.entry-card input:focus{border-color:var(--accent)}fieldset{border:0;padding:0}legend{font-size:13px;margin-bottom:8px}.difficulty-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px}.difficulty-switch label{margin:0;position:relative}.difficulty-switch input{position:absolute;opacity:0}.difficulty-switch span{display:block;padding:13px;border:1px solid #3b4247;border-radius:12px;text-align:center;background:#111416}.difficulty-switch input:checked+span{border-color:var(--accent);background:#342719;color:#ffe0aa;font-weight:800}
+.primary-button,.secondary-button{border:0;border-radius:12px;padding:12px 17px;font-weight:800}.primary-button{background:linear-gradient(180deg,#f6b24d,#dd8d21);color:#1c1307;box-shadow:0 6px 20px rgba(224,143,31,.2)}.primary-button:hover{filter:brightness(1.05)}.secondary-button{background:#252b2f;color:var(--text);border:1px solid #444c51}.primary-button:disabled,.secondary-button:disabled{opacity:.4;cursor:not-allowed}.wide{width:100%}.inline{display:inline-block;margin-top:18px}.divider{display:flex;align-items:center;gap:10px;color:#7f898f;font-size:12px;margin:20px 0}.divider:before,.divider:after{content:"";height:1px;background:#33393d;flex:1}.join-row{display:grid;grid-template-columns:1fr auto;gap:8px}.join-row input{margin:0!important;text-transform:uppercase;letter-spacing:.2em;font-weight:900}.helper{color:var(--muted);font-size:12px;line-height:1.5}.helper.center{text-align:center}.small-link{display:block;text-align:center;margin-top:20px;font-size:12px;color:#b8c0c5;text-decoration:underline}.notice{border:1px solid #74433f;background:#2b1b1a;color:#ffc1bc;padding:11px 13px;border-radius:10px}.notice.compact{max-width:1000px;margin:12px auto}.entry-shell footer{text-align:center;color:#697277;font-size:11px}
+.lobby-card,.result-card{max-width:1240px;margin:28px auto 0;padding:26px}.lobby-head{display:flex;justify-content:space-between;align-items:flex-start;gap:22px}.lobby-head h1{font-size:38px}.lobby-head p{color:var(--muted)}.room-code-big{min-width:160px;border:1px solid #3b4247;background:#101315;border-radius:16px;padding:13px;text-align:center}.room-code-big small{display:block;color:var(--muted);text-transform:uppercase;letter-spacing:.15em}.room-code-big strong{display:block;font-size:30px;letter-spacing:.16em;margin:4px 0}.room-code-big button{background:none;border:0;color:var(--accent2);font-size:12px}.teams-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:24px}.team-card{border:1px solid #353b40;border-radius:18px;padding:14px;background:#111517;position:relative;overflow:hidden}.team-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--team)}.team-blue{--team:var(--blue)}.team-red{--team:var(--red)}.team-green{--team:var(--green)}.team-yellow{--team:var(--yellow)}.team-title{display:flex;align-items:center;gap:8px;margin-bottom:12px}.team-dot{width:12px;height:12px;border-radius:50%;background:var(--team)}.complete-badge{margin-left:auto;font-size:10px;color:#9be6b8;border:1px solid #2f6946;background:#153523;padding:4px 7px;border-radius:999px}.slots{display:grid;grid-template-columns:1fr 1fr;gap:8px}.team-slot{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:68px;padding:10px;border-radius:12px;border:1px dashed #465057;background:#171c1f;color:var(--text)}.team-slot span{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}.team-slot strong{font-size:14px}.team-slot.occupied{border-style:solid}.team-slot.mine{outline:2px solid var(--team);background:#20272b}.team-slot em{font-size:10px;color:#ffafa8}.lobby-bottom{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;padding-top:18px;border-top:1px solid #30363a}.waiting-host{color:var(--muted);font-size:13px}
+.race-meta{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;color:var(--muted);font-size:12px}.race-meta span{border:1px solid #31373b;background:#131719;border-radius:999px;padding:7px 10px}.team-text-blue{color:var(--blue)!important}.team-text-red{color:var(--red)!important}.team-text-green{color:var(--green)!important}.team-text-yellow{color:var(--yellow)!important}.race-status{max-width:1180px;margin:16px auto 10px;display:flex;align-items:center;justify-content:center;gap:18px}.chips-row{display:flex;justify-content:center;gap:8px}.bonus-chip{width:54px;height:54px;padding:0;color:var(--text);border:2px solid #5f676d;border-radius:50%;background:radial-gradient(circle at 35% 30%,#30363a,#15191b);display:grid;place-items:center;position:relative;box-shadow:0 8px 18px rgba(0,0,0,.2)}.bonus-chip:disabled{cursor:default;opacity:.58}.bonus-chip.claimed:disabled{opacity:1}.bonus-chip.claimable{cursor:pointer;border-color:var(--accent2);box-shadow:0 0 0 4px rgba(255,208,122,.13),0 8px 18px rgba(0,0,0,.2);animation:chip-ready 1.2s ease-in-out infinite}.bonus-chip.claimable:hover{filter:brightness(1.15)}@keyframes chip-ready{50%{transform:translateY(-2px);box-shadow:0 0 0 7px rgba(255,208,122,.08),0 11px 22px rgba(0,0,0,.25)}}.bonus-chip strong{font-size:16px}.bonus-chip span{position:absolute;bottom:2px;font-size:8px;color:#8f989e}.bonus-chip.claimed{border-color:var(--chip);box-shadow:0 0 0 3px color-mix(in srgb,var(--chip) 20%,transparent),0 8px 18px rgba(0,0,0,.2)}.chip-blue{--chip:var(--blue)}.chip-red{--chip:var(--red)}.chip-green{--chip:var(--green)}.chip-yellow{--chip:var(--yellow)}.chip-guidance{max-width:390px;margin:6px auto 0;text-align:center;color:var(--muted);font-size:10px;line-height:1.35}.timer-card{min-width:112px;padding:9px 14px;border-radius:14px;background:#111517;border:1px solid #333a3e;text-align:center}.timer-card small{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.15em}.timer-card strong{font-variant-numeric:tabular-nums;font-size:18px}
+.pilot-stage,.copilot-stage{max-width:1180px;margin:0 auto;border:1px solid #30363b;border-radius:20px;background:rgba(17,21,23,.88);padding:16px}.stage-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:12px}.stage-head h2{margin:0;font-size:22px}.draw-tools{display:flex;gap:7px}.tool-btn{border:1px solid #424a50;background:#1d2326;color:#d9dee1;border-radius:10px;padding:9px 11px}.tool-btn.active{border-color:var(--accent);color:#ffdaa0;background:#342719}.paper-wrap{display:flex;justify-content:center}.a5-paper{position:relative;width:min(48vh,520px);aspect-ratio:148/210;background:white;box-shadow:0 18px 50px rgba(0,0,0,.38);border-radius:3px;overflow:hidden}.paper-base,.draw-layer{position:absolute;inset:0;width:100%;height:100%}.draw-layer{touch-action:none}.interactive .draw-layer{cursor:none}.pointer-dot{display:none;position:absolute;width:10px;height:10px;border:2px solid #17191b;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:4}.pointer-dot.erase{width:50px;height:50px;border-style:dashed}.paper-caption{text-align:center;color:var(--muted);font-size:12px;margin:10px 0 0}.ready-zone{display:flex;align-items:center;justify-content:center;gap:12px;min-height:56px;color:var(--muted);font-size:12px}.finish-team-button{min-width:150px;font-size:15px}.ready-active{border-color:#4aaf72;background:#163523;color:#a9eac2}.finish-banner{font-size:20px;font-weight:900;color:#b7edc9;text-align:center}.finish-banner small{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-top:3px}.live-badge{font-size:11px;color:#9fe9bb}.copilot-layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;align-items:start}.copilot-layout .a5-paper{width:min(52vh,500px)}.track-panel{border:1px solid #333a3e;border-radius:16px;padding:12px;background:#0f1214}.track-panel-head{display:flex;justify-content:space-between;align-items:center;gap:8px}.track-panel-head small{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.14em}.track-panel-head strong{font-size:14px}.clockwise{font-size:11px;color:var(--accent2)}.track-card{width:100%;aspect-ratio:148/210;background:white;margin-top:10px;border-radius:2px;overflow:hidden}.track-card canvas{width:100%;height:100%;display:block}.start-readout{text-align:center;margin-top:9px;color:var(--muted);font-size:11px}.start-readout strong{color:var(--text);font-size:15px;margin-left:5px}.countdown-overlay{position:fixed;inset:0;background:rgba(4,6,7,.74);backdrop-filter:blur(5px);z-index:20;display:grid;place-items:center}.countdown-overlay>div{text-align:center}.countdown-overlay small{display:block;letter-spacing:.25em;color:var(--accent2);font-weight:900}.countdown-overlay strong{display:block;font-size:min(32vw,220px);line-height:.9;margin-top:10px;font-variant-numeric:tabular-nums}.waiting-race{color:var(--accent2);font-weight:700}
+.result-card{max-width:1320px}.result-card>h1{font-size:42px}.score-table{border:1px solid #353b40;border-radius:14px;overflow:hidden;margin:20px 0}.score-row{display:grid;grid-template-columns:50px 1.3fr repeat(4,1fr);gap:10px;align-items:center;padding:11px 14px;border-top:1px solid #2e3438;font-size:13px}.score-row:first-child{border-top:0}.score-row.head{background:#101315;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.1em}.result-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}.result-gallery article{border:1px solid #333a3e;background:#111517;border-radius:16px;padding:12px}.result-gallery h3{margin:0 0 9px;font-size:14px}.result-gallery p{font-size:11px;color:var(--muted);margin:8px 0 0}.result-paper{width:100%;aspect-ratio:148/210;background:white;overflow:hidden}.result-paper canvas{width:100%;height:100%;display:block}.result-actions{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:22px;color:var(--muted);font-size:12px}
+.device-page{display:grid;place-items:center;padding:20px}.device-card{width:min(520px,100%);padding:32px;text-align:center}.device-card .brand-mark{margin:auto}.device-card h1{font-size:36px;margin:8px 0}.device-card p{color:var(--muted)}.device-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:24px}.device-actions button{padding:15px;border-radius:13px;border:1px solid #454d52;background:#171c1f;color:var(--text);font-weight:800}
+.manual-page{padding:22px}.manual-head{max-width:980px}.manual-content{max-width:860px;margin:30px auto;padding:34px}.manual-content h2{margin-top:30px;color:#ffd18c}.manual-content p{line-height:1.75;color:#d1d6d9}.brand-inline strong{font-size:16px}
+@media(max-width:900px){.copilot-layout{grid-template-columns:1fr}.track-panel{width:min(74vw,350px);margin:0 auto}.teams-grid{grid-template-columns:1fr}.game-topbar{align-items:flex-start;flex-wrap:wrap}.race-meta{order:3;width:100%}.a5-paper{width:min(58vh,82vw)}.score-row{grid-template-columns:36px 1.2fr repeat(4,.8fr);font-size:11px}.score-row span:last-child{font-size:10px}}
+@media(max-width:620px){.entry-shell,.lobby-shell,.result-shell,.game-shell{padding:12px}.entry-card,.lobby-card,.result-card,.manual-content{border-radius:17px;padding:18px}.entry-top{align-items:flex-start}.top-actions{justify-content:flex-end}.brand-lockup>div{display:none}.brand-mark{width:40px;height:40px}.lobby-head{display:block}.room-code-big{margin-top:14px}.slots{grid-template-columns:1fr}.lobby-bottom{align-items:stretch;flex-direction:column}.lobby-bottom .primary-button{width:100%}.race-status{flex-direction:column;gap:9px}.bonus-chip{width:48px;height:48px}.timer-card{min-width:150px}.stage-head{align-items:flex-start;flex-direction:column}.draw-tools{width:100%}.tool-btn{flex:1}.a5-paper{width:min(58vh,91vw)}.copilot-layout .a5-paper{width:min(52vh,91vw)}.track-panel{width:min(82vw,330px)}.ready-zone{flex-direction:column;text-align:center}.score-table{overflow-x:auto}.score-row{min-width:610px}.result-actions{flex-direction:column}.device-actions{grid-template-columns:1fr}.manual-page{padding:12px}.manual-head{align-items:flex-start}.manual-content h1{font-size:36px}}
+
+/* Rally Team v8 — folha A5 dimensionada pela ALTURA da viewport.
+   A regra anterior usava largura em vh; por ser A5 vertical, isso fazia a
+   altura chegar a ~68vh. Agora a folha inteira cabe na área útil da corrida. */
+.a5-paper{
+  width:min(32dvh,380px,74vw);
+  max-width:100%;
+}
+.copilot-layout{
+  grid-template-columns:minmax(0,1fr) minmax(150px,230px);
+  gap:14px;
+  align-items:start;
+}
+.copilot-layout .a5-paper{
+  width:min(30dvh,350px,58vw);
+}
+.track-panel{
+  width:min(23dvh,210px);
+  max-width:100%;
+  justify-self:center;
+}
+.result-paper{
+  width:min(100%,260px);
+  margin-inline:auto;
+}
+
+@media(max-width:900px){
+  /* O Copiloto continua vendo folha + carta simultaneamente; não empilhamos
+     os dois itens para não exigir rolagem até a carta. */
+  .copilot-layout{
+    grid-template-columns:minmax(0,1fr) minmax(105px,28vw);
+    gap:10px;
+    align-items:start;
+  }
+  .copilot-layout .a5-paper{
+    width:min(28dvh,58vw);
+  }
+  .track-panel{
+    width:min(21dvh,28vw,180px);
+    margin:0;
+    padding:8px;
+  }
+  .track-panel-head{
+    display:block;
+  }
+  .track-panel-head .clockwise{
+    display:block;
+    margin-top:3px;
+  }
+}
+
+@media(max-width:620px){
+  .a5-paper{
+    width:min(29dvh,66vw);
+  }
+  .copilot-layout .a5-paper{
+    width:min(27dvh,57vw);
+  }
+  .track-panel{
+    width:min(19dvh,27vw,150px);
+  }
+  .track-panel-head strong{font-size:11px}
+  .track-panel-head small{font-size:8px}
+  .start-readout{font-size:9px}
+  .start-readout strong{font-size:11px}
+  .result-paper{
+    width:min(100%,220px);
+  }
+}
+
+/* Telas muito baixas: reduz ainda mais para nunca precisar rolar só para
+   alcançar a parte inferior da folha. */
+@media(max-height:700px){
+  .a5-paper{width:min(27dvh,320px,68vw)}
+  .copilot-layout .a5-paper{width:min(25dvh,300px,54vw)}
+  .track-panel{width:min(19dvh,170px)}
+}
+
+/* Rally Team v9 — folha maximiza o espaço útil sem provocar rolagem.
+   Em vez de reduzir a folha por um vh fixo, toda a tela de corrida vira um
+   layout vertical de 100dvh e o palco recebe exatamente o espaço restante. */
+.game-shell{
+  height:100dvh;
+  min-height:100dvh;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  padding:14px 18px 10px;
+}
+.game-shell .game-topbar{
+  flex:0 0 auto;
+}
+.game-shell .race-status{
+  flex:0 0 auto;
+  margin:9px auto 8px;
+}
+.game-shell .pilot-stage,
+.game-shell .copilot-stage{
+  flex:1 1 auto;
+  min-height:0;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  padding:13px 16px 10px;
+}
+.game-shell .stage-head{
+  flex:0 0 auto;
+  margin-bottom:8px;
+}
+.game-shell .paper-wrap{
+  flex:1 1 auto;
+  min-height:0;
+  align-items:center;
+}
+.game-shell .a5-paper,
+.game-shell .copilot-layout .a5-paper{
+  height:100%;
+  width:auto;
+  max-height:100%;
+  max-width:min(82vw,460px);
+  aspect-ratio:148/210;
+  flex:0 0 auto;
+}
+.game-shell .paper-caption{
+  flex:0 0 auto;
+  margin:7px 0 0;
+}
+.game-shell .ready-zone{
+  flex:0 0 auto;
+  min-height:50px;
+  padding-top:5px;
+}
+
+/* Copiloto: a folha compartilhada usa o máximo do palco e a carta permanece
+   propositalmente menor. */
+.game-shell .copilot-layout{
+  flex:1 1 auto;
+  min-height:0;
+  grid-template-columns:minmax(0,1fr) minmax(125px,165px);
+  gap:14px;
+  align-items:stretch;
+}
+.game-shell .copilot-layout .paper-wrap{
+  height:100%;
+  min-height:0;
+}
+.game-shell .copilot-layout .a5-paper{
+  max-width:min(68vw,430px);
+}
+.game-shell .track-panel{
+  width:clamp(125px,12vw,165px);
+  max-width:100%;
+  align-self:center;
+  justify-self:center;
+  padding:9px;
+}
+.game-shell .track-card{
+  margin-top:7px;
+}
+.game-shell .start-readout{
+  margin-top:6px;
+}
+
+/* Em desktop compacto, preserva o cabeçalho em uma única linha sempre que há
+   largura suficiente. Isso devolve altura útil para a folha. */
+@media (min-width:721px) and (max-width:900px){
+  .game-shell .game-topbar{
+    display:grid;
+    grid-template-columns:max-content minmax(0,1fr) max-content;
+    align-items:center;
+    gap:10px;
+    flex-wrap:nowrap;
+  }
+  .game-shell .race-meta{
+    order:initial;
+    width:auto;
+    min-width:0;
+    gap:5px;
+    flex-wrap:nowrap;
+  }
+  .game-shell .race-meta span{
+    padding:6px 8px;
+    font-size:11px;
+    white-space:nowrap;
+  }
+  .game-shell .top-actions{
+    flex-wrap:nowrap;
+    gap:6px;
+  }
+  .game-shell .top-action{
+    padding:8px 9px;
+  }
+}
+
+/* Telas realmente baixas: compactamos margens/cabeçalhos, em vez de tornar a
+   folha minúscula. A própria área flexível continua limitando sua altura. */
+@media (max-height:700px){
+  .game-shell{padding-top:9px;padding-bottom:7px}
+  .game-shell .race-status{margin:6px auto}
+  .game-shell .pilot-stage,
+  .game-shell .copilot-stage{padding-top:10px;padding-bottom:7px}
+  .game-shell .stage-head{margin-bottom:5px}
+  .game-shell .stage-head h2{font-size:20px}
+  .game-shell .eyebrow{margin-bottom:5px}
+  .game-shell .paper-caption{margin-top:5px}
+  .game-shell .ready-zone{min-height:44px;padding-top:3px}
+}
+
+@media (max-height:540px){
+  .game-shell .bonus-chip{width:46px;height:46px}
+  .game-shell .timer-card{padding:6px 11px}
+  .game-shell .stage-head h2{font-size:18px}
+  .game-shell .paper-caption{font-size:10px}
+  .game-shell .ready-zone{min-height:40px;font-size:10px}
+}
+
+/* Mobile continua sem rolagem da folha: ela cresce até o limite disponível,
+   mas nunca ultrapassa a largura da tela. */
+@media (max-width:620px){
+  .game-shell{padding:9px 10px 7px}
+  .game-shell .copilot-layout{
+    grid-template-columns:minmax(0,1fr) minmax(92px,26vw);
+    gap:8px;
+  }
+  .game-shell .a5-paper,
+  .game-shell .copilot-layout .a5-paper{
+    height:100%;
+    width:auto;
+    max-width:70vw;
+  }
+  .game-shell .track-panel{
+    width:min(26vw,130px);
+    padding:6px;
+  }
+}
+
+/* Rally Team v12 — carta do Copiloto um pouco maior, sem disputar espaço com
+   a folha principal nem alterar a proporção A5. */
+.game-shell .copilot-layout{
+  grid-template-columns:minmax(0,1fr) minmax(150px,195px);
+}
+.game-shell .track-panel{
+  width:clamp(150px,14.5vw,195px);
+}
+
+@media (max-width:900px){
+  .game-shell .copilot-layout{
+    grid-template-columns:minmax(0,1fr) minmax(125px,30vw);
+  }
+  .game-shell .track-panel{
+    width:min(30vw,180px);
+  }
+}
+
+@media (max-width:620px){
+  .game-shell .copilot-layout{
+    grid-template-columns:minmax(0,1fr) minmax(105px,30vw);
+  }
+  .game-shell .track-panel{
+    width:min(30vw,150px);
+  }
+}
+
+/* Rally Team v13 — Modo Smartphone */
+.mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:20px 0 6px}.mode-switch button{border:1px solid #3b4247;background:#111416;color:var(--muted);padding:12px;border-radius:12px;font-weight:800}.mode-switch button.active{border-color:var(--accent);background:#342719;color:#ffe0aa}.smartphone-players{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:22px}.smartphone-player{--team:#888;display:flex;align-items:center;gap:11px;border:1px solid #353b40;border-radius:15px;padding:14px;background:#111517;position:relative;overflow:hidden}.smartphone-player:before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:var(--team)}.smartphone-player.team-blue{--team:var(--blue)}.smartphone-player.team-red{--team:var(--red)}.smartphone-player.team-green{--team:var(--green)}.smartphone-player.team-yellow{--team:var(--yellow)}.smartphone-player .team-dot{background:var(--team);flex:0 0 auto}.smartphone-player div{display:flex;flex-direction:column}.smartphone-player small{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.12em}.smartphone-player strong{font-size:15px}.smartphone-role{margin-left:auto;color:var(--muted);font-size:11px}.smartphone-player em{font-size:10px;color:#ffafa8}.smartphone-stage{max-width:980px;margin:0 auto;border:1px solid #30363b;border-radius:20px;background:rgba(17,21,23,.88);padding:16px;flex:1 1 auto;min-height:0;width:100%;display:flex;flex-direction:column}.smartphone-track-wrap{display:grid;grid-template-columns:minmax(230px,380px) minmax(180px,300px);gap:22px;justify-content:center;align-items:center;flex:1;min-height:0}.smartphone-track-card .track-panel{width:min(31dvh,290px);max-width:100%;margin:auto}.smartphone-track-card .track-panel .track-card{width:100%}.smartphone-instructions{border:1px solid #363d42;background:#111517;border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:7px}.smartphone-instructions>strong{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}.smartphone-instructions>span{font-size:15px}.smartphone-instructions>b{font-size:30px;color:var(--accent2)}.smartphone-instructions p{font-size:12px;line-height:1.6;color:var(--muted);margin:4px 0 0}.scan-game{height:auto;min-height:100dvh;overflow:auto}.scan-stage{max-width:1080px;width:100%;margin:18px auto;border:1px solid #30363b;border-radius:20px;background:rgba(17,21,23,.94);padding:20px}.scan-head h2{margin:0 0 6px;font-size:28px}.scan-head p{margin:0;color:var(--muted);line-height:1.55}.scan-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,360px);gap:18px;margin-top:18px}.scan-capture,.scan-preview{border:1px solid #333a3e;background:#0f1214;border-radius:16px;padding:14px}.camera-button{display:block;text-align:center}.scan-source{display:block;width:100%;max-height:52vh;object-fit:contain;background:#080a0b;border:1px solid #343b40;border-radius:10px;margin:12px auto;cursor:crosshair}.scan-marker-status{font-size:12px;line-height:1.5;color:#d7dce0;margin:8px 0 10px}.scan-preview h3{margin:0 0 10px}.scan-paper{width:min(100%,250px);aspect-ratio:148/210;background:#fff;margin:auto;border-radius:3px;overflow:hidden}.scan-paper img{width:100%;height:100%;display:block;object-fit:fill}.scan-preview .wide{margin-top:12px}.sheet-download{display:block;text-align:center;margin:12px 0 0;color:var(--accent2);font-size:12px;text-decoration:underline}
+@media(max-width:720px){.smartphone-players{grid-template-columns:1fr}.smartphone-role{font-size:10px}.smartphone-game .race-status{flex-direction:row;flex-wrap:wrap}.smartphone-track-wrap{grid-template-columns:minmax(0,1fr) minmax(135px,35vw);gap:10px}.smartphone-track-card .track-panel{width:min(38dvh,44vw,230px)}.smartphone-instructions{padding:12px}.smartphone-instructions>b{font-size:24px}.scan-grid{grid-template-columns:1fr}.scan-stage{padding:14px;margin-top:10px}.scan-source{max-height:46vh}.scan-paper{width:min(58vw,230px)}}
+@media(max-width:480px){.smartphone-track-wrap{grid-template-columns:1fr 1fr}.smartphone-track-card .track-panel{width:min(44vw,210px)}.smartphone-instructions{font-size:10px}.smartphone-instructions p{font-size:10px}.smartphone-instructions>b{font-size:21px}}
+
+
+/* Rally Team theme refresh — inspirado na capa */
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@500;700;800;900&family=Baloo+2:wght@500;700;800&display=swap");
+
+:root{
+  --bg:#06245b;
+  --panel:#0d2b66;
+  --panel2:#143c8c;
+  --line:#3f77d0;
+  --text:#fffaf2;
+  --muted:#c6dcff;
+  --accent:#f25b2a;
+  --accent2:#ffd44d;
+  --danger:#ff8c80;
+  --blue:#2ea2ff;
+  --red:#ff4f46;
+  --green:#50d48c;
+  --yellow:#ffd84d;
+  font-family:"Baloo 2", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+html,body{background:
+  radial-gradient(circle at 50% 18%, rgba(94,173,255,.32), transparent 26%),
+  linear-gradient(180deg,#0b62de 0%, #0a48ab 28%, #072f78 58%, #04193f 100%);
+  color:var(--text);
+}
+body:before{
+  opacity:.24;
+  background-image:
+    repeating-conic-gradient(from -12deg at 50% 16%, rgba(255,255,255,.16) 0 10deg, rgba(255,255,255,0) 10deg 20deg),
+    radial-gradient(circle at 12% 18%, rgba(255,255,255,.28) 0 14%, transparent 15%),
+    radial-gradient(circle at 88% 15%, rgba(255,255,255,.24) 0 12%, transparent 13%),
+    radial-gradient(circle at 78% 34%, rgba(255,255,255,.16) 0 10%, transparent 11%);
+  background-size:cover;
+}
+.brand-lockup strong,.brand-inline strong,.entry-card h1,.lobby-card h1,.result-card h1,.manual-content h1,.stage-head h2,.device-card h1{
+  font-family:"Montserrat", "Baloo 2", sans-serif;
+  font-weight:900;
+}
+.brand-lockup strong{font-size:26px;letter-spacing:.01em;text-transform:uppercase;line-height:.9}
+.brand-lockup small{font-size:12px;color:#ddecff;letter-spacing:.24em;font-weight:800}
+.brand-mark{
+  width:50px;height:50px;border:3px solid #fff5d4;border-radius:50%;
+  background:linear-gradient(180deg,#102756,#0b1a3b);color:#fff;
+  box-shadow:0 0 0 4px rgba(255,212,77,.18), inset 0 0 0 4px rgba(255,255,255,.06);
+}
+.entry-card,.lobby-card,.result-card,.device-card,.manual-content,
+.pilot-stage,.copilot-stage{
+  border:1px solid rgba(255,255,255,.18);
+  background:linear-gradient(180deg,rgba(12,35,87,.94),rgba(8,23,58,.95));
+  box-shadow:0 30px 80px rgba(2,8,26,.38), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.top-action,.room-pill,.timer-card,.team-card,.room-code-big,.track-panel,.bonus-chip,.race-meta span{
+  border-color:rgba(255,255,255,.16);
+  background:rgba(6,24,61,.82);
+}
+.top-action:hover,.room-code-big:hover{border-color:rgba(255,212,77,.55)}
+.room-pill strong,.room-code-big strong{color:#fff9dc}
+.eyebrow,.clockwise{color:#ffd44d}
+.lead,.lobby-head p,.manual-content p,.helper,.waiting-host,.chip-guidance,.start-readout,.room-code-big small{color:#d6e5ff}
+.entry-card input,.difficulty-switch span,.team-slot,.track-panel,.tool-btn,
+.primary-button,.secondary-button,.notice,.device-actions button{
+  font-family:"Baloo 2", sans-serif;
+}
+.entry-card input,.difficulty-switch span,.team-slot,.tool-btn,.secondary-button,.device-actions button{
+  border-color:rgba(255,255,255,.16);
+  background:rgba(4,16,42,.72);
+}
+.entry-card input:focus,.tool-btn.active,.difficulty-switch input:checked+span{border-color:var(--accent2)}
+.primary-button{
+  background:linear-gradient(180deg,#ffbe43,#f27b27);
+  color:#3a1800;
+  box-shadow:0 8px 22px rgba(242,123,39,.28);
+}
+.primary-button:hover{filter:brightness(1.05) saturate(1.05)}
+.secondary-button,.top-action,.tool-btn{color:#fffaf2}
+.tool-btn.active,.difficulty-switch input:checked+span{
+  color:#2b1700;background:linear-gradient(180deg,#ffe289,#ffc95d);
+}
+.complete-badge{border-color:#4bcf88;background:#103c2b;color:#b7ffd4}
+.team-slot.mine{background:rgba(255,255,255,.07)}
+.notice{border-color:#b85a3f;background:rgba(81,28,19,.78);color:#ffd6c8}
+.track-card,.result-paper,.a5-paper{box-shadow:0 22px 48px rgba(2,8,26,.34)}
+.track-card, .a5-paper, .result-paper{background:#fffefc}
+.sheet-download,.small-link{color:#fff1a6;font-weight:700}
+.countdown-overlay{background:rgba(2,10,26,.78)}
+.countdown-overlay strong{color:#fffdf8;text-shadow:0 8px 20px rgba(0,0,0,.28)}
+.finish-banner{background:rgba(255,212,77,.12);border-color:rgba(255,212,77,.45)}
+
+/* Overlay de carregamento da geração da pista */
+.start-loading-overlay{
+  position:fixed;inset:0;z-index:60;
+  display:grid;place-items:center;
+  background:rgba(3,10,25,.62);
+  backdrop-filter:blur(6px);
+}
+.start-loading-card{
+  width:min(440px,calc(100vw - 32px));
+  padding:28px 26px 24px;
+  border-radius:24px;
+  border:1px solid rgba(255,255,255,.18);
+  background:linear-gradient(180deg,rgba(12,35,87,.96),rgba(8,23,58,.97));
+  text-align:center;
+  box-shadow:0 28px 80px rgba(2,8,26,.45);
+}
+.start-loading-card strong{
+  display:block;
+  margin-top:14px;
+  font:900 28px/1.02 "Montserrat", sans-serif;
+  color:#fff9ef;
+}
+.start-loading-card p{
+  margin:10px auto 0;
+  max-width:32ch;
+  color:#d7e7ff;
+  font-size:15px;
+  line-height:1.45;
+}
+.rally-spinner{
+  width:70px;height:70px;margin:0 auto;
+  border-radius:50%;
+  border:6px solid rgba(255,255,255,.14);
+  border-top-color:#ffd44d;
+  border-right-color:#ff6b3d;
+  position:relative;
+  animation:rally-spin .95s linear infinite;
+  box-shadow:0 0 0 6px rgba(255,255,255,.04);
+}
+.rally-spinner:before,
+.rally-spinner:after{
+  content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  border-radius:50%;
+}
+.rally-spinner:before{width:30px;height:30px;background:rgba(255,255,255,.08)}
+.rally-spinner:after{width:10px;height:10px;background:#fff5d4;box-shadow:0 0 0 4px rgba(255,212,77,.18)}
+@keyframes rally-spin{to{transform:rotate(360deg)}}

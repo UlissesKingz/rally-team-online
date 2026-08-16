@@ -1,0 +1,16 @@
+{
+  "name": "rally-team-online",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Protótipo online de Rally Team para 1 a 4 duplas.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}
