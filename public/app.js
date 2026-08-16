@@ -2,6 +2,7 @@
   const socket = io();
   const app = document.querySelector('#app');
   const DISCORD_URL = 'https://discord.gg/EJCHTwQjDz';
+  const PRINT_URL = 'https://drive.google.com/file/d/1NTREN6puV1vzGzoSEqJDpfxvFYwyMZxM/view?usp=sharing';
   const COLORS = ['blue','red','green','yellow'];
   const COLOR_LABELS = { blue:'Azul', red:'Vermelha', green:'Verde', yellow:'Amarela' };
   const ROLE_LABELS = { pilot:'Piloto', copilot:'Copiloto' };
@@ -55,8 +56,9 @@
   function myTeam() { const p=myPlayer(); return p?.color ? state?.teams?.[p.color] : null; }
   function button(text, cls='secondary-button', attrs='') { return `<button class="${cls}" ${attrs}>${text}</button>`; }
   function brand() { return `<div class="brand-lockup"><span class="brand-mark">RT</span><div><strong>Rally Team</strong><small>Online</small></div></div>`; }
-  function topLinks(includeExit=false, exitLabel='Sair') {
-    return `<div class="top-actions"><a class="top-action" href="/manual.html" target="_blank">Manual</a><a class="top-action" href="${DISCORD_URL}" target="_blank" rel="noopener">Discord</a>${includeExit?`<button id="exitRoom" class="top-action danger-link">${exitLabel}</button>`:''}</div>`;
+  function topLinks(includeExit=false, exitLabel='Sair', includeRestart=false) {
+    const canRestart = includeRestart && state && myPlayer()?.id===state.hostId && ['prep','countdown','racing','finished'].includes(state.status);
+    return `<div class="top-actions"><a class="top-action" href="/manual.html" target="_blank">Manual</a><a class="top-action" href="${PRINT_URL}" target="_blank" rel="noopener">Imprimir</a><a class="top-action" href="${DISCORD_URL}" target="_blank" rel="noopener">Discord</a>${canRestart?`<button id="topRestartGame" class="top-action" ${(restartGamePending||state.restarting)?'disabled':''}>${(restartGamePending||state.restarting)?'Gerando…':'Reiniciar'}</button>`:''}${includeExit?`<button id="exitRoom" class="top-action danger-link">${exitLabel}</button>`:''}</div>`;
   }
   function startingOverlayMarkup(restarting=false) {
     return `<div class="start-loading-overlay" role="status" aria-live="polite"><div class="start-loading-card"><div class="rally-spinner" aria-hidden="true"></div><strong>${restarting?'Gerando nova pista…':'Gerando a pista…'}</strong><p>${restarting?'A próxima etapa já está sendo preparada. Aguarde alguns instantes.':'A partida já foi iniciada. Aguarde alguns instantes enquanto o percurso é preparado.'}</p><button type="button" id="loadingExit" class="secondary-button loading-exit">Sair da sala</button></div></div>`;
@@ -92,6 +94,10 @@
   function bindLoadingExit() {
     const btn=document.querySelector('#loadingExit');
     if(btn) btn.onclick=()=>leaveRoom();
+  }
+  function bindTopRestart() {
+    const btn=document.querySelector('#topRestartGame');
+    if(btn && !btn.disabled) btn.onclick=()=>requestRestartGame();
   }
   function setNotice(msg='') { notice=msg; render(); }
   function emitAck(event, payload, onOk) {
@@ -185,7 +191,7 @@
   function raceHeader() {
     const me=myPlayer();
     const roleLabel=state.mode==='smartphone'?'Smartphone · Copiloto':ROLE_LABELS[me.role];
-    return `<header class="game-topbar">${brand()}<div class="race-meta"><span>Sala <strong>${esc(state.code)}</strong></span><span>${state.difficulty==='hard'?'Difícil':'Fácil'}</span><span class="team-name team-text-${me.color}">Equipe ${COLOR_LABELS[me.color]}</span><span>${roleLabel}</span></div>${topLinks(true)}</header>`;
+    return `<header class="game-topbar">${brand()}<div class="race-meta"><span>Sala <strong>${esc(state.code)}</strong></span><span>${state.difficulty==='hard'?'Difícil':'Fácil'}</span><span class="team-name team-text-${me.color}">Equipe ${COLOR_LABELS[me.color]}</span><span>${roleLabel}</span></div>${topLinks(true,'Sair',true)}</header>`;
   }
   function paperMarkup(idPrefix, interactive=false) {
     return `<div class="paper-wrap ${interactive?'interactive':''}"><div class="paper-tools-slot"></div><div class="a5-paper"><canvas class="paper-base" id="${idPrefix}Base" width="740" height="1050"></canvas><canvas class="draw-layer" id="${idPrefix}Draw" width="740" height="1050"></canvas>${interactive?'<div id="pointerDot" class="pointer-dot"></div>':''}</div></div>`;
@@ -378,7 +384,7 @@
       <p class="helper center">Correção pelo acetato virtual · ${gridLabel}. Cada célula correta alcançada vale 1 ponto.</p>
       <div class="score-table"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span><span>Bônus</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}</span><span>${r.routeScore}/${r.targetCellCount}</span><span>+${r.bonus}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
       <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>Equipe ${COLOR_LABELS[r.color]}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span><strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos · +${r.bonus} bônus · ${fmtMs(r.elapsedMs)}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
-      <div class="result-actions">${me.id===state.hostId?`<button id="restartGame" class="primary-button" ${(restartGamePending||state.status==='restarting')?'disabled':''}>${(restartGamePending||state.status==='restarting')?'Gerando nova pista…':'Reiniciar partida'}</button>`:`<span>${state.status==='restarting'?'O anfitrião está gerando uma nova pista…':'Aguardando o anfitrião para reiniciar.'}</span>`}<button id="leaveResult" class="secondary-button">Sair</button></div></section>${(state.status==='restarting'||restartGamePending)?startingOverlayMarkup(true):''}</main>`;
+      <div class="result-actions">${me.id===state.hostId?`<button id="restartGame" class="primary-button" ${(restartGamePending||state.restarting)?'disabled':''}>${(restartGamePending||state.restarting)?'Gerando nova pista…':'Reiniciar partida'}</button>`:`<span>${state.restarting?'O anfitrião está gerando uma nova pista…':'Aguardando o anfitrião para reiniciar.'}</span>`}<button id="leaveResult" class="secondary-button">Sair</button></div></section></main>`;
     drawTrack('resultOriginal', state.track);
     for(const r of ranking){
       if(state.mode==='smartphone'&&r.scanImage) drawScannedResult(`result-${r.color}`,r.scanImage,r.acetate,true);
@@ -407,8 +413,13 @@
     stopTimers();
     if(!state){ entryView(); return; }
     if(state.status==='lobby' || state.status==='starting') lobbyView();
-    else if(state.status==='finished' || state.status==='restarting') resultView();
+    else if(state.status==='finished') resultView();
     else prepRaceView();
+    if ((state.restarting || restartGamePending) && !document.querySelector('.start-loading-overlay')) {
+      app.insertAdjacentHTML('beforeend', startingOverlayMarkup(true));
+      bindLoadingExit();
+    }
+    bindTopRestart();
   }
 
   function drawBase(id, start, label) {
@@ -673,7 +684,7 @@
   socket.on('roomState', next => {
     state=next;
     if (next.status !== 'lobby') startGamePending = false;
-    if (next.status !== 'finished') restartGamePending = false;
+    if (!next.restarting && next.status !== 'finished') restartGamePending = false;
     const me=next.players.find(p=>p.id===identity.playerId);
     if(me){entryMode=next.mode||entryMode;saveIdentity({roomCode:next.code,name:me.name,mode:entryMode});}
     const ownTeam = me?.color ? next.teams?.[me.color] : null;

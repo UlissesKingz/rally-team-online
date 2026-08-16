@@ -945,7 +945,7 @@ function createRoomData(name, difficulty, socketId, mode='online') {
   const room = {
     code, mode, difficulty, hostId: id, status: 'lobby', createdAt: Date.now(), updatedAt: Date.now(),
     players: { [id]: player }, playerOrder: [id], track: null, chips: [null,null,null,null],
-    startedAt: null, countdownEndsAt: null, results: null, teamStates: {}, smartphoneStarts: {}
+    startedAt: null, countdownEndsAt: null, results: null, teamStates: {}, smartphoneStarts: {}, restarting:false
   };
   rooms.set(code, room);
   return { room, player };
@@ -1218,6 +1218,7 @@ function roomClientShape(room, viewer) {
     difficulty: room.difficulty,
     hostId: room.hostId,
     status: room.status,
+    restarting: !!room.restarting,
     startedAt: room.startedAt,
     countdownEndsAt: room.countdownEndsAt,
     chips: room.chips,
@@ -1564,13 +1565,14 @@ io.on('connection', socket => {
 
   socket.on('setReady', (payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
+    if (room.restarting) return ackError(ack,'Aguarde a nova pista ser gerada.');
     if (room.status!=='prep') return ackError(ack,'Não é possível alterar prontidão agora.');
     player.ready=payload?.ready!==false; emitRoom(room); ackOk(ack); beginCountdown(room);
   });
 
   socket.on('drawOp', raw => {
     if (!simpleRate(socket,'draw',220,1000)) return;
-    const {room,player}=playerBySocket(socket); if (!room||!player||room.status!=='racing'||player.role!=='pilot'||!player.color) return;
+    const {room,player}=playerBySocket(socket); if (!room||!player||room.restarting||room.status!=='racing'||player.role!=='pilot'||!player.color) return;
     const team=room.teamStates[player.color]; if (!team||team.pilotId!==player.id||team.finishedAt) return;
     const op=cleanDrawOp(raw); if (!op) return;
     if (team.ops.length>=20000) return;
@@ -1581,6 +1583,7 @@ io.on('connection', socket => {
 
   socket.on('claimChip', (payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
+    if (room.restarting) return ackError(ack,'Aguarde a nova pista ser gerada.');
     if (player.role!=='copilot' || !player.color) return ackError(ack,'Somente o Copiloto pode pegar a ficha.');
     const team=room.teamStates[player.color]; if (!team||team.copilotId!==player.id) return ackError(ack,'Dupla inválida.');
     const result=claimChip(room,team,Number(payload?.index));
@@ -1632,9 +1635,12 @@ io.on('connection', socket => {
   socket.on('restartGame', (_payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
     if (player.id!==room.hostId) return ackError(ack,'Somente o anfitrião pode reiniciar.');
-    if (room.status!=='finished') return ackError(ack,'A partida ainda não terminou.');
+    if (!['prep','countdown','racing','finished'].includes(room.status)) return ackError(ack,'Não é possível reiniciar neste momento.');
+    if (room.restarting) return ackError(ack,'Uma nova pista já está sendo gerada.');
 
-    room.status='restarting';
+    room.restarting=true;
+    if (countdownTimers.has(room.code)) clearTimeout(countdownTimers.get(room.code));
+    countdownTimers.delete(room.code);
     emitRoom(room);
     ackOk(ack);
 
@@ -1647,11 +1653,17 @@ io.on('connection', socket => {
         room.countdownEndsAt=null;
         for (const id of room.playerOrder) room.players[id].ready=false;
         initializeTeamStates(room);
+        room.restarting=false;
         room.status='prep';
         emitRoom(room);
       } catch (err) {
         console.error('[Rally Team] Falha ao reiniciar com nova pista:', err);
-        room.status='finished';
+        room.restarting=false;
+        room.status='prep';
+        room.startedAt=null;
+        room.countdownEndsAt=null;
+        for (const id of room.playerOrder) room.players[id].ready=false;
+        initializeTeamStates(room);
         emitRoom(room);
       }
     });
