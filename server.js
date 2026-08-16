@@ -131,6 +131,29 @@ function trackCellCount(points, difficulty) {
   const { cols, rows } = acetateGrid(difficulty);
   return cellsFromMask(targetMask, W, H, cols, rows).indexes.length;
 }
+function fastTrackCellCount(points, difficulty) {
+  // Pré-checagem barata para o gerador. A aferição final continua usando o
+  // raster completo; aqui só evitamos rasterizar centenas de candidatos ruins.
+  const { cols, rows } = acetateGrid(difficulty);
+  const occupied = new Uint8Array(cols * rows);
+  const mark = (x, y) => {
+    const col = Math.max(0, Math.min(cols - 1, Math.floor(x * cols)));
+    const row = Math.max(0, Math.min(rows - 1, Math.floor(y * rows)));
+    occupied[row * cols + col] = 1;
+  };
+  for (let i = 1; i < points.length; i += 1) {
+    const a = points[i - 1], b = points[i];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx) * cols, Math.abs(dy) * rows) * 12));
+    for (let s = 0; s <= steps; s += 1) {
+      const t = s / steps;
+      mark(a.x + dx * t, a.y + dy * t);
+    }
+  }
+  let count = 0;
+  for (const value of occupied) count += value;
+  return count;
+}
 function pickInt(rand, a, b) {
   return a + Math.floor(rand() * (b - a + 1));
 }
@@ -235,9 +258,11 @@ function roundMapPolygon(poly, rand, difficulty) {
   // fechadas sem transformar a pista numa estrela. O Fácil preserva mais retas.
   for (let i = 0; i < n; i += 1) {
     const roll = rand();
+    // Não usamos mais cortes minúsculos: eles eram responsáveis pelos pequenos
+    // 'tiques' e pontas. Ainda há curvas fechadas, mas sempre com raio visível.
     cuts[i] = difficulty === 'hard'
-      ? (roll < 0.22 ? 0.0025 : roll < 0.50 ? 0.009 : roll < 0.80 ? 0.020 : 0.036)
-      : (roll < 0.36 ? 0.0015 : roll < 0.66 ? 0.005 : roll < 0.88 ? 0.012 : 0.022);
+      ? (roll < 0.25 ? 0.010 : roll < 0.55 ? 0.018 : roll < 0.82 ? 0.030 : 0.044)
+      : (roll < 0.30 ? 0.008 : roll < 0.62 ? 0.015 : roll < 0.86 ? 0.025 : 0.038);
   }
 
   for (let i = 0; i < n; i += 1) {
@@ -262,16 +287,19 @@ function roundMapPolygon(poly, rand, difficulty) {
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     const len = Math.hypot(dx, dy);
-    const curveChance = difficulty === 'hard' ? 0.72 : 0.55;
-    const canBow = len > (difficulty === 'hard' ? 0.075 : 0.11) && rand() < curveChance;
+    const curveChance = difficulty === 'hard' ? 0.88 : 0.76;
+    // Retas continuam existindo, mas uma reta enorme atravessando grande parte
+    // da folha é convertida em uma curva ampla automaticamente.
+    const forceCurve = len > (difficulty === 'hard' ? 0.18 : 0.20);
+    const canBow = forceCurve || (len > (difficulty === 'hard' ? 0.060 : 0.075) && rand() < curveChance);
 
     if (canBow) {
       // O contorno é horário; a normal negativa aponta para fora da massa.
       // Curvar prioritariamente para fora mantém a silhueta simples.
       const nx = -dy / len;
       const ny = dx / len;
-      const maxOff = difficulty === 'hard' ? Math.min(0.018, len * 0.10) : Math.min(0.010, len * 0.07);
-      const off = -maxOff * (0.35 + rand() * 0.65);
+      const maxOff = difficulty === 'hard' ? Math.min(0.038, len * 0.18) : Math.min(0.032, len * 0.16);
+      const off = -maxOff * (0.45 + rand() * 0.55);
       const control = {
         x: clamp((a.x + b.x) / 2 + nx * off, 0.012, 0.988),
         y: clamp((a.y + b.y) / 2 + ny * off, 0.012, 0.988)
@@ -669,8 +697,8 @@ function internalAngleDeg(a,b,c) {
 }
 function softenSharpVertices(poly, difficulty) {
   let cur=poly.slice();
-  const passes = difficulty === 'hard' ? 2 : 1;
-  const minAngle = difficulty === 'hard' ? 74 : 68;
+  const passes = 2;
+  const minAngle = difficulty === 'hard' ? 78 : 74;
   for (let pass=0; pass<passes; pass+=1) {
     const next=[];
     for (let i=0;i<cur.length;i+=1) {
@@ -745,13 +773,14 @@ function buildMapTrackCandidate(rand, difficulty) {
   if (simplified.length<7) return {points:[],validShape:false,usableShape:false,style:blob.style,metrics:null};
 
   // Mantém apenas as grandes entradas/saliências da massa e remove os micro-recortes.
-  let major=simplifyClosedContour(simplified,difficulty==='hard'?0.040:0.048);
+  let major=simplifyClosedContour(simplified,difficulty==='hard'?0.032:0.036);
   if (major.length < 8) major = simplified;
   major = softenSharpVertices(major, difficulty);
 
   // Reconstrói o contorno como mistura de retas e curvas maiores, mais próximo das referências.
   let points=roundMapPolygon(major,rand,difficulty);
-  points=organicMapWarp(points,rand,difficulty);
+  // A antiga deformação senoidal adicionava micro-mudanças em trechos que
+  // deveriam ser visualmente limpos. A rotação/inclinação já dá variedade.
   points=applyDiagonalTransform(points,rand,difficulty);
   if (points.length) points[points.length-1]={...points[0]};
 
@@ -768,14 +797,13 @@ function buildMapTrackCandidate(rand, difficulty) {
 
   const usableShape=!selfIntersects&&points.length>=12&&spanW>0.40&&spanH>0.48&&aspect>0.28&&aspect<1.95;
   const validShape=usableShape
-    && spanW>0.50&&spanH>0.58
-    && stats.fill>0.22&&stats.fill<0.72
-    && solidity>(difficulty==='hard'?0.48:0.52)
-    && solidity<(difficulty==='hard'?0.88:0.90)
-    && concavities>=(difficulty==='hard'?3:2)
-    && concavities<=(difficulty==='hard'?8:6)
-    && stats.exposed>(difficulty==='hard'?58:44)
-    && aspect>0.38&&aspect<1.60;
+    && spanW>0.48&&spanH>0.56
+    && stats.fill>0.20&&stats.fill<0.80
+    && solidity>(difficulty==='hard'?0.44:0.48)
+    && solidity<(difficulty==='hard'?0.93:0.93)
+    && concavities>=(difficulty==='hard'?2:2)
+    && concavities<=(difficulty==='hard'?9:7)
+    && aspect>0.34&&aspect<1.70;
 
   return {points,validShape,usableShape,style:blob.style,metrics:{spanW,spanH,aspect,fill:stats.fill,exposed:stats.exposed,selfIntersects,solidity,concavities}};
 }
@@ -823,65 +851,43 @@ function generateTrack(difficulty) {
   const minCells = difficulty === 'hard' ? 80 : 38;
   const maxCells = difficulty === 'hard' ? 100 : 50;
   const centerTarget = difficulty === 'hard' ? 90 : 44;
-  let bestStrict = null;
-  let bestUsable = null;
+  const maxAttempts = difficulty === 'hard' ? 18 : 14;
+  const fastMargin = difficulty === 'hard' ? 15 : 7;
+  let bestInRange = null;
+  let bestFallback = null;
 
-  // Primeiro buscamos uma pista que cumpra simultaneamente estética + faixa.
-  // Candidatos apenas "usáveis" também são guardados como fallback seguro.
-  for (let attempt = 0; attempt < 520; attempt += 1) {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const seed = crypto.randomBytes(4).readUInt32LE(0);
     const rand = mulberry32(seed);
     const candidate = buildMapTrackCandidate(rand, difficulty);
     if (!candidate.usableShape) continue;
 
+    const fastCount = fastTrackCellCount(candidate.points, difficulty);
+    if (fastCount < minCells - fastMargin || fastCount > maxCells + 2) continue;
+
     const cellCount = trackCellCount(candidate.points, difficulty);
-    const inRange = cellCount >= minCells && cellCount <= maxCells;
-    const distanceFromRange = cellCount < minCells
-      ? minCells - cellCount
-      : cellCount > maxCells
-        ? cellCount - maxCells
-        : 0;
+    const distanceFromRange = cellCount < minCells ? minCells - cellCount : cellCount > maxCells ? cellCount - maxCells : 0;
     const centerDistance = Math.abs(cellCount - centerTarget);
-
-    // Penalidade estética para o fallback: quanto menor, melhor.
     const m = candidate.metrics || {};
+
+    // Escolhe entre poucos candidatos bons, em vez de varrer centenas deles.
+    // Isso preserva variedade e evita bloquear o Socket.IO durante vários segundos.
     let visualPenalty = 0;
-    if (m.fill != null) {
-      if (m.fill > 0.76) visualPenalty += (m.fill - 0.76) * 120;
-      if (m.fill < 0.24) visualPenalty += (0.24 - m.fill) * 120;
+    if (m.solidity != null) {
+      if (m.solidity > 0.91) visualPenalty += (m.solidity - 0.91) * 120; // oval/compacta demais
+      if (m.solidity < 0.48) visualPenalty += (0.48 - m.solidity) * 80;  // recortada demais
     }
-    if (m.exposed != null) {
-      const desired = difficulty === 'hard' ? 44 : 32;
-      if (m.exposed < desired) visualPenalty += (desired - m.exposed) * 0.8;
-    }
-    if (m.aspect != null && (m.aspect < 0.38 || m.aspect > 1.60)) visualPenalty += 8;
-    const fallbackScore = distanceFromRange * 100 + centerDistance + visualPenalty;
+    if (m.aspect != null && (m.aspect < 0.36 || m.aspect > 1.65)) visualPenalty += 8;
+    const score = distanceFromRange * 100 + centerDistance * 0.35 + visualPenalty;
+    const row = { seed, candidate, cellCount, score };
 
-    if (!bestUsable || fallbackScore < bestUsable.fallbackScore) {
-      bestUsable = { seed, candidate, cellCount, distanceFromRange, centerDistance, fallbackScore };
-    }
-
-    if (!candidate.validShape) continue;
-    if (!bestStrict || distanceFromRange < bestStrict.distanceFromRange ||
-      (distanceFromRange === bestStrict.distanceFromRange && centerDistance < bestStrict.centerDistance)) {
-      bestStrict = { seed, candidate, cellCount, distanceFromRange, centerDistance };
-    }
-
-    if (inRange) return finalizeGeneratedTrack(seed, difficulty, candidate, cellCount, minCells, maxCells);
+    if (!bestFallback || score < bestFallback.score) bestFallback = row;
+    if (distanceFromRange === 0 && (!bestInRange || score < bestInRange.score)) bestInRange = row;
   }
 
-  // Se nenhum candidato rigoroso caiu exatamente na faixa, usa o rigoroso mais próximo.
-  if (bestStrict) {
-    return finalizeGeneratedTrack(bestStrict.seed, difficulty, bestStrict.candidate, bestStrict.cellCount, minCells, maxCells);
-  }
+  const chosen = bestInRange || bestFallback;
+  if (chosen) return finalizeGeneratedTrack(chosen.seed, difficulty, chosen.candidate, chosen.cellCount, minCells, maxCells);
 
-  // Se os critérios visuais estiverem restritivos demais para uma sequência de seeds,
-  // usa o melhor candidato geométrica e tecnicamente seguro, sem derrubar o servidor.
-  if (bestUsable) {
-    return finalizeGeneratedTrack(bestUsable.seed, difficulty, bestUsable.candidate, bestUsable.cellCount, minCells, maxCells);
-  }
-
-  // Proteção absoluta: nunca lançar exceção por falha de geração.
   const emergency = emergencyTrackCandidate(difficulty);
   const emergencyCells = trackCellCount(emergency.points, difficulty);
   return finalizeGeneratedTrack(0, difficulty, emergency, emergencyCells, minCells, maxCells);
@@ -1150,7 +1156,7 @@ function generateTrackForRoom(room) {
   const minCells = room.difficulty === 'hard' ? 80 : 38;
   const maxCells = room.difficulty === 'hard' ? 100 : 50;
   let best = null;
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
     room.track = generateTrack(room.difficulty);
     assignSmartphoneStarts(room);
     const count = room.track.targetCellCount;
@@ -1530,9 +1536,30 @@ io.on('connection', socket => {
       if (completeTeams(room).length<1) return ackError(ack,'Forme ao menos uma dupla completa.');
       if (!allPlayersInCompleteTeams(room)) return ackError(ack,'Todos os jogadores precisam estar em uma dupla completa.');
     }
-    generateTrackForRoom(room); room.chips=[null,null,null,null]; room.results=null; room.startedAt=null; room.countdownEndsAt=null;
-    for (const id of room.playerOrder) room.players[id].ready=false;
-    initializeTeamStates(room); room.status='prep'; emitRoom(room); ackOk(ack);
+
+    room.status='starting';
+    room.startedAt=null;
+    room.countdownEndsAt=null;
+    emitRoom(room);
+    ackOk(ack);
+
+    setImmediate(() => {
+      try {
+        generateTrackForRoom(room);
+        room.chips=[null,null,null,null];
+        room.results=null;
+        room.startedAt=null;
+        room.countdownEndsAt=null;
+        for (const id of room.playerOrder) room.players[id].ready=false;
+        initializeTeamStates(room);
+        room.status='prep';
+        emitRoom(room);
+      } catch (err) {
+        console.error('[Rally Team] Falha ao gerar pista:', err);
+        room.status='lobby';
+        emitRoom(room);
+      }
+    });
   });
 
   socket.on('setReady', (payload, ack) => {
@@ -1606,9 +1633,28 @@ io.on('connection', socket => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
     if (player.id!==room.hostId) return ackError(ack,'Somente o anfitrião pode reiniciar.');
     if (room.status!=='finished') return ackError(ack,'A partida ainda não terminou.');
-    generateTrackForRoom(room); room.chips=[null,null,null,null]; room.results=null; room.startedAt=null; room.countdownEndsAt=null;
-    for (const id of room.playerOrder) room.players[id].ready=false;
-    initializeTeamStates(room); room.status='prep'; emitRoom(room); ackOk(ack);
+
+    room.status='restarting';
+    emitRoom(room);
+    ackOk(ack);
+
+    setImmediate(() => {
+      try {
+        generateTrackForRoom(room);
+        room.chips=[null,null,null,null];
+        room.results=null;
+        room.startedAt=null;
+        room.countdownEndsAt=null;
+        for (const id of room.playerOrder) room.players[id].ready=false;
+        initializeTeamStates(room);
+        room.status='prep';
+        emitRoom(room);
+      } catch (err) {
+        console.error('[Rally Team] Falha ao reiniciar com nova pista:', err);
+        room.status='finished';
+        emitRoom(room);
+      }
+    });
   });
 
   socket.on('leaveRoom', (_payload, ack) => {

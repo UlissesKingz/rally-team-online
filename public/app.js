@@ -31,6 +31,7 @@
   let manualMarkerPoints = [];
   let scanWorkSize = null;
   let startGamePending = false;
+  let restartGamePending = false;
 
   function loadIdentity() {
     try { return JSON.parse(sessionStorage.getItem('rallyTeamIdentity') || 'null') || {}; } catch { return {}; }
@@ -57,8 +58,8 @@
   function topLinks(includeExit=false, exitLabel='Sair') {
     return `<div class="top-actions"><a class="top-action" href="/manual.html" target="_blank">Manual</a><a class="top-action" href="${DISCORD_URL}" target="_blank" rel="noopener">Discord</a>${includeExit?`<button id="exitRoom" class="top-action danger-link">${exitLabel}</button>`:''}</div>`;
   }
-  function startingOverlayMarkup() {
-    return `<div class="start-loading-overlay" role="status" aria-live="polite"><div class="start-loading-card"><div class="rally-spinner" aria-hidden="true"></div><strong>Gerando a pista…</strong><p>A partida já foi iniciada. Aguarde alguns segundos enquanto o percurso é preparado.</p></div></div>`;
+  function startingOverlayMarkup(restarting=false) {
+    return `<div class="start-loading-overlay" role="status" aria-live="polite"><div class="start-loading-card"><div class="rally-spinner" aria-hidden="true"></div><strong>${restarting?'Gerando nova pista…':'Gerando a pista…'}</strong><p>${restarting?'A próxima etapa já está sendo preparada. Aguarde alguns instantes.':'A partida já foi iniciada. Aguarde alguns instantes enquanto o percurso é preparado.'}</p><button type="button" id="loadingExit" class="secondary-button loading-exit">Sair da sala</button></div></div>`;
   }
   function requestStartGame() {
     if (startGamePending) return;
@@ -73,6 +74,24 @@
       }
       notice = '';
     });
+  }
+  function requestRestartGame() {
+    if (restartGamePending) return;
+    restartGamePending = true;
+    render();
+    socket.emit('restartGame', {}, res => {
+      if (!res?.ok) {
+        restartGamePending = false;
+        notice = res?.error || 'Não foi possível reiniciar a partida.';
+        render();
+        return;
+      }
+      notice = '';
+    });
+  }
+  function bindLoadingExit() {
+    const btn=document.querySelector('#loadingExit');
+    if(btn) btn.onclick=()=>leaveRoom();
   }
   function setNotice(msg='') { notice=msg; render(); }
   function emitAck(event, payload, onOk) {
@@ -129,6 +148,7 @@
       </section>${(state.status==='starting'||startGamePending)?startingOverlayMarkup():''}</main>`;
     document.querySelector('#copyCode').onclick=async()=>{try{await navigator.clipboard.writeText(state.code);document.querySelector('#copyCode').textContent='Copiado!';setTimeout(()=>{const b=document.querySelector('#copyCode');if(b)b.textContent='Copiar';},1200);}catch{}};
     const st=document.querySelector('#startGame'); if(st) st.onclick=()=>requestStartGame();
+    bindLoadingExit();
     bindExit();
   }
   function lobbyView() {
@@ -145,6 +165,7 @@
     document.querySelectorAll('.team-slot').forEach(btn=>btn.onclick=()=>emitAck('setTeam',{color:btn.dataset.color,role:btn.dataset.role}));
     document.querySelector('#copyCode').onclick=async()=>{try{await navigator.clipboard.writeText(state.code);document.querySelector('#copyCode').textContent='Copiado!';setTimeout(()=>{const b=document.querySelector('#copyCode');if(b)b.textContent='Copiar';},1200);}catch{}};
     const st=document.querySelector('#startGame'); if(st) st.onclick=()=>requestStartGame();
+    bindLoadingExit();
     bindExit();
   }
 
@@ -357,7 +378,7 @@
       <p class="helper center">Correção pelo acetato virtual · ${gridLabel}. Cada célula correta alcançada vale 1 ponto.</p>
       <div class="score-table"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span><span>Bônus</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}</span><span>${r.routeScore}/${r.targetCellCount}</span><span>+${r.bonus}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
       <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>Equipe ${COLOR_LABELS[r.color]}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span><strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos · +${r.bonus} bônus · ${fmtMs(r.elapsedMs)}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
-      <div class="result-actions">${me.id===state.hostId?'<button id="restartGame" class="primary-button">Reiniciar partida</button>':'<span>Aguardando o anfitrião para reiniciar.</span>'}<button id="leaveResult" class="secondary-button">Sair</button></div></section></main>`;
+      <div class="result-actions">${me.id===state.hostId?`<button id="restartGame" class="primary-button" ${(restartGamePending||state.status==='restarting')?'disabled':''}>${(restartGamePending||state.status==='restarting')?'Gerando nova pista…':'Reiniciar partida'}</button>`:`<span>${state.status==='restarting'?'O anfitrião está gerando uma nova pista…':'Aguardando o anfitrião para reiniciar.'}</span>`}<button id="leaveResult" class="secondary-button">Sair</button></div></section>${(state.status==='restarting'||restartGamePending)?startingOverlayMarkup(true):''}</main>`;
     drawTrack('resultOriginal', state.track);
     for(const r of ranking){
       if(state.mode==='smartphone'&&r.scanImage) drawScannedResult(`result-${r.color}`,r.scanImage,r.acetate,true);
@@ -376,8 +397,9 @@
         else drawResultWithAcetate(`result-${color}`, state.track?.start, row.ops || [], row.acetate, next);
       };
     });
-    const restart=document.querySelector('#restartGame'); if(restart) restart.onclick=()=>emitAck('restartGame',{});
+    const restart=document.querySelector('#restartGame'); if(restart&&!restart.disabled) restart.onclick=()=>requestRestartGame();
     document.querySelector('#leaveResult').onclick=()=>leaveRoom();
+    bindLoadingExit();
     bindExit();
   }
 
@@ -385,7 +407,7 @@
     stopTimers();
     if(!state){ entryView(); return; }
     if(state.status==='lobby' || state.status==='starting') lobbyView();
-    else if(state.status==='finished') resultView();
+    else if(state.status==='finished' || state.status==='restarting') resultView();
     else prepRaceView();
   }
 
@@ -651,6 +673,7 @@
   socket.on('roomState', next => {
     state=next;
     if (next.status !== 'lobby') startGamePending = false;
+    if (next.status !== 'finished') restartGamePending = false;
     const me=next.players.find(p=>p.id===identity.playerId);
     if(me){entryMode=next.mode||entryMode;saveIdentity({roomCode:next.code,name:me.name,mode:entryMode});}
     const ownTeam = me?.color ? next.teams?.[me.color] : null;

@@ -420,3 +420,7 @@ body:before{
 .rally-spinner:before{width:30px;height:30px;background:rgba(255,255,255,.08)}
 .rally-spinner:after{width:10px;height:10px;background:#fff5d4;box-shadow:0 0 0 4px rgba(255,212,77,.18)}
 @keyframes rally-spin{to{transform:rotate(360deg)}}
+
+/* v26 — ações durante geração de pista */
+.loading-exit{margin-top:16px;min-width:150px}
+.start-loading-card .loading-exit{background:rgba(5,18,48,.78);border-color:rgba(255,255,255,.22)}
