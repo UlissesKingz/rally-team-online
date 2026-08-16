@@ -984,7 +984,7 @@ function smartphonePrintedPoints(side) {
     for (let i = 0; i < 12; i += 1) points.push({ label:`N${String(i+1).padStart(2,'0')}`, x:0.5, y:(17 + 8*i) / 210 });
   } else if (side === 'bottom') {
     // S01 começa 111 mm abaixo do topo; passos de 8 mm.
-    for (let i = 0; i < 12; i += 1) points.push({ label:`S${String(i+1).padStart(2,'0')}`, x:0.5, y:(111 + 8*i) / 210 });
+    for (let i = 0; i < 11; i += 1) points.push({ label:`S${String(i+1).padStart(2,'0')}`, x:0.5, y:(111 + 8*i) / 210 });
   } else if (side === 'left') {
     // W01..W08 seguem exatamente as posições impressas na folha A5 v5.
     const step = 57 / 7;
