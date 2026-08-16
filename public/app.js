@@ -55,7 +55,7 @@
   function myPlayer() { return state?.players?.find(p => p.id === identity.playerId) || null; }
   function myTeam() { const p=myPlayer(); return p?.color ? state?.teams?.[p.color] : null; }
   function button(text, cls='secondary-button', attrs='') { return `<button class="${cls}" ${attrs}>${text}</button>`; }
-  function brand() { return `<div class="brand-lockup"><span class="brand-mark">RT</span><div><strong>Rally Team</strong><small>Online</small></div></div>`; }
+  function brand() { return `<div class="brand-lockup"><img src="/logo.png" alt="Rally Team" class="brand-logo"><div><strong>Rally Team</strong><small>Online</small></div></div>`; }
   function topLinks(includeExit=false, exitLabel='Sair', includeRestart=false) {
     const canRestart = includeRestart && state && myPlayer()?.id===state.hostId && ['prep','countdown','racing','finished'].includes(state.status);
     return `<div class="top-actions"><a class="top-action" href="/manual.html" target="_blank">Manual</a><a class="top-action" href="${PRINT_URL}" target="_blank" rel="noopener">Imprimir</a><a class="top-action" href="${DISCORD_URL}" target="_blank" rel="noopener">Discord</a>${canRestart?`<button id="topRestartGame" class="top-action" ${(restartGamePending||state.restarting)?'disabled':''}>${(restartGamePending||state.restarting)?'Gerando…':'Reiniciar'}</button>`:''}${includeExit?`<button id="exitRoom" class="top-action danger-link">${exitLabel}</button>`:''}</div>`;
@@ -99,6 +99,8 @@
     const btn=document.querySelector('#topRestartGame');
     if(btn && !btn.disabled) btn.onclick=()=>requestRestartGame();
   }
+  function legalFooterMarkup() { return `<footer class="legal-footer">Jogo criado por Ulisses Reis e Marcelo Torres © 2026 — Propriedade intelectual protegida. Reprodução, distribuição ou uso não autorizado são proibidos.</footer>`; }
+  function ensureLegalFooter() { if(!app.querySelector('.legal-footer')) app.insertAdjacentHTML('beforeend', legalFooterMarkup()); }
   function setNotice(msg='') { notice=msg; render(); }
   function emitAck(event, payload, onOk) {
     socket.emit(event, payload, res => {
@@ -121,8 +123,27 @@
       <p class="helper">${smartphone?'A sala aceita de 1 a 4 Copilotos. Cada um joga ao lado de um Piloto com uma folha física.':'A dificuldade de uma sala existente é definida pelo anfitrião.'}</p>
       ${smartphone?'<a class="sheet-download" href="/rally-team-folha-smartphone-a5.pdf" target="_blank">Baixar folha A5 para impressão</a>':''}
       <a class="small-link" href="/device.html">Trocar versão</a>
-    </section><footer>Rally Team · protótipo online</footer></main>`;
-    document.querySelectorAll('[data-entry-mode]').forEach(btn=>btn.onclick=()=>{entryMode=btn.dataset.entryMode;saveIdentity({mode:entryMode});notice='';render();});
+    </section></main>`;
+    const persistEntryFields=()=>{
+      const nameField=document.querySelector('#playerName');
+      const difficultyField=document.querySelector('input[name="difficulty"]:checked');
+      saveIdentity({
+        name:nameField?.value ?? identity.name ?? '',
+        difficulty:difficultyField?.value || identity.difficulty || 'easy'
+      });
+    };
+    document.querySelectorAll('[data-entry-mode]').forEach(btn=>btn.onclick=()=>{
+      persistEntryFields();
+      entryMode=btn.dataset.entryMode;
+      saveIdentity({mode:entryMode});
+      notice='';
+      render();
+    });
+    const playerNameField=document.querySelector('#playerName');
+    if(playerNameField)playerNameField.addEventListener('input',()=>saveIdentity({name:playerNameField.value}));
+    document.querySelectorAll('input[name="difficulty"]').forEach(input=>input.addEventListener('change',()=>{
+      if(input.checked)saveIdentity({difficulty:input.value});
+    }));
     const name=()=>document.querySelector('#playerName').value.trim();
     document.querySelector('#createRoom').onclick=()=>{
       const difficulty=document.querySelector('input[name="difficulty"]:checked').value;
@@ -411,15 +432,16 @@
 
   function render() {
     stopTimers();
-    if(!state){ entryView(); return; }
-    if(state.status==='lobby' || state.status==='starting') lobbyView();
+    if(!state) entryView();
+    else if(state.status==='lobby' || state.status==='starting') lobbyView();
     else if(state.status==='finished') resultView();
     else prepRaceView();
-    if ((state.restarting || restartGamePending) && !document.querySelector('.start-loading-overlay')) {
+    if (state && (state.restarting || restartGamePending) && !document.querySelector('.start-loading-overlay')) {
       app.insertAdjacentHTML('beforeend', startingOverlayMarkup(true));
       bindLoadingExit();
     }
     bindTopRestart();
+    ensureLegalFooter();
   }
 
   function drawBase(id, start, label) {

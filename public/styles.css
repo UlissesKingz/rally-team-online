@@ -424,3 +424,27 @@ body:before{
 /* v26 — ações durante geração de pista */
 .loading-exit{margin-top:16px;min-width:150px}
 .start-loading-card .loading-exit{background:rgba(5,18,48,.78);border-color:rgba(255,255,255,.22)}
+
+
+/* Rally Team v29 — rodapé legal discreto em todas as páginas */
+.legal-footer{
+  position:fixed;left:0;right:0;bottom:3px;z-index:75;
+  padding:0 10px;text-align:center;pointer-events:none;
+  font-size:8px;line-height:1.15;font-weight:500;letter-spacing:.01em;
+  color:rgba(235,244,255,.58);text-shadow:0 1px 2px rgba(0,0,0,.7);
+}
+@media(max-width:620px){.legal-footer{font-size:6.5px;bottom:2px;padding:0 5px;color:rgba(235,244,255,.54)}}
+
+
+/* v31 — logo oficial no lugar do emblema RT */
+.brand-logo{display:block;width:148px;max-width:42vw;height:auto;flex:0 0 auto}
+.brand-logo.small{width:92px;max-width:none}
+.device-logo{margin:0 auto 6px;width:min(230px,78vw)}
+.brand-lockup{gap:14px}
+.brand-inline{gap:12px}
+.brand-lockup > div,.brand-inline strong{flex:0 0 auto}
+@media(max-width:620px){
+  .brand-logo{width:118px;max-width:44vw}
+  .brand-logo.small{width:76px}
+  .device-logo{width:min(190px,72vw)}
+}
