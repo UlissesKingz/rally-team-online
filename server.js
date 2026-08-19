@@ -945,7 +945,7 @@ function createRoomData(name, difficulty, socketId, mode='online') {
   const room = {
     code, mode, difficulty, hostId: id, status: 'lobby', createdAt: Date.now(), updatedAt: Date.now(),
     players: { [id]: player }, playerOrder: [id], track: null, chips: [null,null,null,null],
-    startedAt: null, countdownEndsAt: null, results: null, teamStates: {}, smartphoneStarts: {}, restarting:false
+    startedAt: null, countdownEndsAt: null, results: null, teamStates: {}, smartphoneStarts: {}, restarting:false, finishCounter:0
   };
   rooms.set(code, room);
   return { room, player };
@@ -1176,6 +1176,7 @@ function generateTrackForRoom(room) {
 
 function initializeTeamStates(room) {
   room.teamStates = {};
+  room.finishCounter = 0;
   const slots = teamSlots(room);
   for (const color of completeTeams(room)) {
     const smartphone = room.mode === 'smartphone';
@@ -1183,7 +1184,7 @@ function initializeTeamStates(room) {
       color,
       pilotId: smartphone ? null : slots[color].pilot.id,
       copilotId: slots[color].copilot.id,
-      ops: [], bonus: 0, finishedAt: null, elapsedMs: null,
+      ops: [], bonus: 0, finishPlace: null, finishOrder: null, finishedAt: null, elapsedMs: null,
       pilotConfirmed: false, copilotConfirmed: false,
       routeScore: null, targetCellCount: null, total: null,
       scanSubmitted:false, scanCells:null, scanImage:null,
@@ -1230,6 +1231,7 @@ function roomClientShape(room, viewer) {
       pilot: teams[c].pilot ? { id:teams[c].pilot.id, name:teams[c].pilot.name, connected:teams[c].pilot.connected, ready:teams[c].pilot.ready } : null,
       copilot: teams[c].copilot ? { id:teams[c].copilot.id, name:teams[c].copilot.name, connected:teams[c].copilot.connected, ready:teams[c].copilot.ready } : null,
       bonus: room.teamStates[c]?.bonus || 0,
+      finishPlace: room.teamStates[c]?.finishPlace || null,
       pilotConfirmed: !!room.teamStates[c]?.pilotConfirmed,
       copilotConfirmed: !!room.teamStates[c]?.copilotConfirmed,
       finishedAt: room.teamStates[c]?.finishedAt || null,
@@ -1365,6 +1367,27 @@ function scoreSmartphoneTeam(room, team) {
     acetate:{cols:target.cols,rows:target.rows,targetCells:target.indexes,hitCells}
   };
 }
+function finishBonusByTeamCount(teamCount) {
+  if (teamCount >= 4) return [10, 5, 3, 0];
+  if (teamCount === 3) return [10, 4, 0];
+  if (teamCount === 2) return [7, 0];
+  return [0];
+}
+function assignFinishBonuses(room, colors) {
+  const order = colors.slice().sort((a,b) => {
+    const ta = room.teamStates[a];
+    const tb = room.teamStates[b];
+    return (ta.finishOrder || Infinity) - (tb.finishOrder || Infinity)
+      || (ta.finishedAt || Infinity) - (tb.finishedAt || Infinity)
+      || TEAM_COLORS.indexOf(a) - TEAM_COLORS.indexOf(b);
+  });
+  const bonuses = finishBonusByTeamCount(order.length);
+  order.forEach((color,index) => {
+    const team = room.teamStates[color];
+    team.finishPlace = index + 1;
+    team.bonus = bonuses[index] || 0;
+  });
+}
 function maybeFinishRoom(room) {
   const colors = Object.keys(room.teamStates);
   if (!colors.length) return false;
@@ -1373,6 +1396,7 @@ function maybeFinishRoom(room) {
     ? colors.every(c=>room.teamStates[c].finishedAt&&room.teamStates[c].scanSubmitted)
     : colors.every(c=>room.teamStates[c].finishedAt);
   if(!ready)return false;
+  assignFinishBonuses(room, colors);
   const rows = colors.map(color => {
     const t=room.teamStates[color];
     const scored=smartphone?scoreSmartphoneTeam(room,t):scoreTeam(room,t);
@@ -1385,6 +1409,7 @@ function maybeFinishRoom(room) {
       targetCellCount:t.targetCellCount,
       playerCellCount:scored.playerCellCount,
       bonus:t.bonus,
+      finishPlace:t.finishPlace,
       total:t.total,
       elapsedMs:t.elapsedMs,
       ops:t.ops,
@@ -1398,24 +1423,15 @@ function maybeFinishRoom(room) {
   room.results={
     ranking:rows,
     finishedAt:Date.now(),
-    scoring:'acetate-cells',
+    scoring:'acetate-cells-plus-finish-bonus',
     grid:acetateGrid(room.difficulty),
     mode:room.mode||'online'
   };
   room.status='finished';
   return true;
 }
-function claimChip(room, team, index) {
-  if (room.status !== 'racing' || team.finishedAt) return { ok:false, error:'A etapa não está disponível para pegar fichas.' };
-  if (!Number.isInteger(index) || index < 0 || index > 3) return { ok:false, error:'Ficha inválida.' };
-  if (room.chips[index]) return { ok:false, error:'Essa ficha já foi conquistada por outra dupla.' };
-  const nextIndex = room.chips.findIndex(owner => !owner);
-  if (nextIndex !== index) return { ok:false, error:'As fichas devem ser conquistadas na ordem do percurso.' };
-  room.chips[index] = team.color;
-  team.bonus += 5;
-  io.to(room.code).emit('chipClaimed', { index, color:team.color });
-  emitRoom(room);
-  return { ok:true };
+function claimChip() {
+  return { ok:false, error:'As fichas de etapa foram removidas. O bônus agora é definido pela ordem de conclusão.' };
 }
 function confirmTeamFinish(room, team, player) {
   if (room.status !== 'racing') return { ok:false, error:'A corrida ainda não está em andamento.' };
@@ -1425,6 +1441,7 @@ function confirmTeamFinish(room, team, player) {
     if (player.id !== team.copilotId) return { ok:false, error:'Você não pertence a essa dupla.' };
     team.copilotConfirmed=true;
     team.finishedAt=Date.now();
+    team.finishOrder=++room.finishCounter;
     team.elapsedMs=Math.max(0,team.finishedAt-room.startedAt);
     emitRoom(room);
     return {ok:true,confirmedRole:'copilot',teamFinished:true,elapsedMs:team.elapsedMs,roomFinished:false,needsScan:true};
@@ -1443,6 +1460,7 @@ function confirmTeamFinish(room, team, player) {
   let roomFinished = false;
   if (team.pilotConfirmed && team.copilotConfirmed) {
     team.finishedAt = Date.now();
+    team.finishOrder = ++room.finishCounter;
     team.elapsedMs = Math.max(0, team.finishedAt - room.startedAt);
     teamFinished = true;
     roomFinished = maybeFinishRoom(room);

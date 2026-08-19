@@ -196,19 +196,6 @@
     bindExit();
   }
 
-  function chipsHtml() {
-    const me=myPlayer(), team=myTeam();
-    const nextIndex=state.chips.findIndex(owner=>!owner);
-    return `<div class="chips-row">${state.chips.map((owner,i)=>{
-      const claimable=state.status==='racing' && me?.role==='copilot' && !team?.finishedAt && !owner && i===nextIndex;
-      const title=owner
-        ? `Ficha ${i+1} — Equipe ${COLOR_LABELS[owner]}`
-        : claimable
-          ? 'Copiloto: clique quando considerar que o desenho chegou corretamente à próxima linha.'
-          : `Ficha ${i+1}${i>nextIndex&&nextIndex>=0?' — aguarde a ficha anterior':''}`;
-      return `<button type="button" class="bonus-chip ${owner?`claimed chip-${owner}`:''} ${claimable?'claimable':''}" data-chip="${i}" ${claimable?'':'disabled'} title="${esc(title)}"><strong>+5</strong><span>${i+1}</span></button>`;
-    }).join('')}</div>`;
-  }
   function raceHeader() {
     const me=myPlayer();
     const roleLabel=state.mode==='smartphone'?'Smartphone · Copiloto':ROLE_LABELS[me.role];
@@ -229,7 +216,7 @@
     const sideNames={top:'linha vertical superior',right:'linha horizontal direita',bottom:'linha vertical inferior',left:'linha horizontal esquerda'};
     const start=team?.smartphoneStart||{side:state.track?.startSide,label:state.track?.startLabel};
     const raceClockValue=finished?fmtMs(team.elapsedMs):(racing?fmtMs(Date.now()-state.startedAt):'00:00.00');
-    app.innerHTML=`<main class="game-shell smartphone-game">${raceHeader()}<section class="race-status"><div>${chipsHtml()}${racing&&!finished?'<p class="chip-guidance">Quando considerar que o Piloto chegou corretamente à próxima referência do percurso, pegue a ficha disponível.</p>':''}</div><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div></section>
+    app.innerHTML=`<main class="game-shell smartphone-game">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div></section>
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
       <section class="smartphone-stage"><div class="stage-head"><div><p class="eyebrow">Modo Smartphone · Copiloto</p><h2>${racing?'Navegue o Piloto':'Prepare a etapa'}</h2></div><div class="live-badge">Piloto no papel físico</div></div>
         <div class="smartphone-track-wrap"><div class="smartphone-track-card">${trackCardMarkup()}</div><div class="smartphone-instructions"><strong>Seu ponto de largada</strong><span>${esc(sideNames[start?.side]||'ponto indicado')}</span><b>${esc(start?.label||state.track?.startLabel||'')}</b><p>O Piloto inicia exatamente nesse ponto da cruz central da folha e percorre a pista no sentido horário.</p></div></div>
@@ -238,7 +225,6 @@
       ${countdown?'<div id="countdownOverlay" class="countdown-overlay"><div><small>LARGADA EM</small><strong id="countdownNumber">10</strong></div></div>':''}
     </main>`;
     if(state.track?.points)drawTrack('trackCanvas',state.track);
-    document.querySelectorAll('.bonus-chip.claimable').forEach(btn=>btn.onclick=()=>emitAck('claimChip',{index:Number(btn.dataset.chip)}));
     const readyBtn=document.querySelector('#readyBtn');if(readyBtn)readyBtn.onclick=()=>emitAck('setReady',{ready:!ready});
     const finishBtn=document.querySelector('#finishTeamBtn');
     if(finishBtn)finishBtn.onclick=()=>{
@@ -269,7 +255,7 @@
       ? `<section class="pilot-stage"><div class="stage-head"><div><p class="eyebrow">Piloto</p><h2>${racing?'Desenhe o percurso':'Prepare a folha'}</h2></div>${racing&&!finished?`<div class="draw-tools"><button data-tool="draw" class="tool-btn ${tool==='draw'?'active':''}">✎ Desenhar</button><button data-tool="erase" class="tool-btn ${tool==='erase'?'active':''}">⌫ Borracha</button></div>`:''}</div>${paperMarkup('pilot',true)}<p class="paper-caption">Início: <strong>${esc(state.track?.startLabel||'')}</strong> · percurso no sentido horário.</p></section>`
       : `<section class="copilot-stage"><div class="stage-head"><div><p class="eyebrow">Copiloto</p><h2>Acompanhe e navegue</h2></div><div class="live-badge">● desenho ao vivo</div></div><div class="copilot-layout">${paperMarkup('copilot',false)}${trackCardMarkup()}</div></section>`;
     const raceClockValue=finished?fmtMs(team.finishedAt-state.startedAt):(racing?fmtMs(Date.now()-state.startedAt):'00:00.00');
-    app.innerHTML=`<main class="game-shell">${raceHeader()}<section class="race-status"><div>${chipsHtml()}${racing&&me.role==='copilot'&&!finished?'<p class="chip-guidance">Quando considerar que o traço chegou corretamente à próxima linha, pegue a ficha disponível.</p>':''}</div><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div></section>
+    app.innerHTML=`<main class="game-shell">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div></section>
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
       ${roleMain}
       <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${team?.pilot?.ready&&team?.copilot?.ready?'Sua dupla está pronta.':'Piloto e Copiloto precisam confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="${myConfirmed?'secondary-button':'primary-button'} finish-team-button" ${myConfirmed?'disabled aria-disabled="true"':''}>${myConfirmed?'Você confirmou ✓':'Concluímos'}</button><div class="finish-status"><span>Piloto: <strong>${team?.pilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><span>Copiloto: <strong>${team?.copilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><small>${myConfirmed?`Aguardando ${mateRoleLabel} confirmar.`:mateConfirmed?`${mateRoleLabel} já confirmou. Você pode concluir agora, mesmo com o desenho incompleto ou vazio.`:'A conclusão não depende do desenho. Piloto e Copiloto apenas confirmam quando quiserem encerrar.'}</small></div>`:''}${finished?`<div class="finish-banner">CONCLUÍDO · ${fmtMs(team.finishedAt-state.startedAt)} <small>Desenho bloqueado. Aguardando as demais duplas concluírem.</small></div>`:''}</section>
@@ -282,7 +268,6 @@
     if(!isPilot && state.track?.points) drawTrack('trackCanvas', state.track);
     if(isPilot && racing && !finished) bindDrawing('pilotDraw');
     document.querySelectorAll('.tool-btn').forEach(btn=>btn.onclick=()=>selectTool(btn.dataset.tool));
-    document.querySelectorAll('.bonus-chip.claimable').forEach(btn=>btn.onclick=()=>emitAck('claimChip',{index:Number(btn.dataset.chip)}));
     const readyBtn=document.querySelector('#readyBtn'); if(readyBtn) readyBtn.onclick=()=>emitAck('setReady',{ready:!ready});
     const finishBtn=document.querySelector('#finishTeamBtn');
     if(finishBtn && !myConfirmed) {
@@ -401,10 +386,17 @@
     const me=myPlayer();
     const ranking=state.results?.ranking || [];
     const gridLabel=state.difficulty==='hard'?'384 células (96 por quadrante)':'96 células (24 por quadrante)';
+    const finishRule=ranking.length>=4
+      ? 'Bônus de chegada: 1º +10 · 2º +5 · 3º +3 · 4º +0.'
+      : ranking.length===3
+        ? 'Bônus de chegada: 1º +10 · 2º +4 · 3º +0.'
+        : ranking.length===2
+          ? 'Bônus de chegada: 1º +7 · 2º +0.'
+          : 'Sem bônus de chegada em partida com uma única dupla.';
     app.innerHTML=`<main class="result-shell">${raceHeader()}<section class="result-card"><p class="eyebrow">Resultado da etapa</p><h1>${ranking[0]?`Equipe ${COLOR_LABELS[ranking[0].color]} vence!`:'Resultado'}</h1>
-      <p class="helper center">Correção pelo acetato virtual · ${gridLabel}. Cada célula correta alcançada vale 1 ponto.</p>
-      <div class="score-table"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span><span>Bônus</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}</span><span>${r.routeScore}/${r.targetCellCount}</span><span>+${r.bonus}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
-      <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>Equipe ${COLOR_LABELS[r.color]}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span><strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos · +${r.bonus} bônus · ${fmtMs(r.elapsedMs)}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
+      <p class="helper center">Correção pelo acetato virtual · ${gridLabel}. Cada célula correta alcançada vale 1 ponto. ${finishRule}</p>
+      <div class="score-table"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span><span>Chegada</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}</span><span>${r.routeScore}/${r.targetCellCount}</span><span>${r.finishPlace?`${r.finishPlace}º · `:''}+${r.bonus}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
+      <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>Equipe ${COLOR_LABELS[r.color]}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span><strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos · ${r.finishPlace?`${r.finishPlace}º a concluir · `:''}+${r.bonus} chegada · ${fmtMs(r.elapsedMs)}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
       <div class="result-actions">${me.id===state.hostId?`<button id="restartGame" class="primary-button" ${(restartGamePending||state.restarting)?'disabled':''}>${(restartGamePending||state.restarting)?'Gerando nova pista…':'Reiniciar partida'}</button>`:`<span>${state.restarting?'O anfitrião está gerando uma nova pista…':'Aguardando o anfitrião para reiniciar.'}</span>`}<button id="leaveResult" class="secondary-button">Sair</button></div></section></main>`;
     drawTrack('resultOriginal', state.track);
     for(const r of ranking){
@@ -717,9 +709,6 @@
   socket.on('drawOp', ({color,op}) => {
     const me=myPlayer(); if(!me||me.color!==color||me.role!=='copilot'||!op)return;
     localOps.push(op);const c=document.querySelector('#copilotDraw');if(c)applyOp(c.getContext('2d'),c,op);
-  });
-  socket.on('chipClaimed', ({index,color}) => {
-    if(state&&Array.isArray(state.chips)){state.chips[index]=color;const row=document.querySelectorAll('.bonus-chip')[index];if(row){row.className=`bonus-chip claimed chip-${color}`;row.title=`Ficha ${index+1} — Equipe ${COLOR_LABELS[color]}`;}}
   });
   socket.on('connect', () => {
     if(identity.roomCode&&identity.playerId&&identity.token){socket.emit('resumeSession',{code:identity.roomCode,playerId:identity.playerId,token:identity.token},res=>{if(!res?.ok){state=null;clearIdentity();render();}});}

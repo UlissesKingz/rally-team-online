@@ -448,3 +448,42 @@ body:before{
   .brand-logo.small{width:76px}
   .device-logo{width:min(190px,72vw)}
 }
+
+/* Rally Team v32 — folha do Piloto maior + remoção das fichas de etapa */
+.chips-row,.bonus-chip,.chip-guidance{display:none!important}
+.game-shell .race-status{
+  margin:5px auto 6px;
+  min-height:0;
+  flex:0 0 auto;
+}
+.game-shell .timer-card{
+  padding:7px 14px;
+}
+.game-shell .pilot-stage{
+  max-width:min(1500px,100%);
+  padding:10px 12px 7px;
+}
+.game-shell .pilot-stage .stage-head{
+  margin-bottom:4px;
+}
+.game-shell .pilot-stage .paper-wrap{
+  flex:1 1 auto;
+  min-height:0;
+  align-items:stretch;
+  justify-content:center;
+}
+.game-shell .pilot-stage .a5-paper{
+  height:100%;
+  width:auto;
+  max-height:100%;
+  max-width:min(94vw,680px);
+}
+.game-shell .pilot-stage .paper-caption{
+  margin-top:4px;
+}
+@media(max-width:620px){
+  .game-shell .pilot-stage{padding:7px 6px 5px}
+  .game-shell .pilot-stage .a5-paper{max-width:94vw}
+  .game-shell .race-status{margin:3px auto 4px}
+  .game-shell .timer-card{padding:5px 11px}
+}
