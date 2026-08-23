@@ -55,7 +55,7 @@
   function myPlayer() { return state?.players?.find(p => p.id === identity.playerId) || null; }
   function myTeam() { const p=myPlayer(); return p?.color ? state?.teams?.[p.color] : null; }
   function button(text, cls='secondary-button', attrs='') { return `<button class="${cls}" ${attrs}>${text}</button>`; }
-  function brand() { return `<div class="brand-lockup"><img src="/logo.png" alt="Rally Team" class="brand-logo"><div><strong>Rally Team</strong><small>Online</small></div></div>`; }
+  function brand() { return `<div class="brand-lockup"><img src="/logo.png" alt="Rally Team" class="brand-logo"></div>`; }
   function topLinks(includeExit=false, exitLabel='Sair', includeRestart=false) {
     const canRestart = includeRestart && state && myPlayer()?.id===state.hostId && ['prep','countdown','racing','finished'].includes(state.status);
     return `<div class="top-actions"><a class="top-action" href="/manual.html" target="_blank">Manual</a><a class="top-action" href="${PRINT_URL}" target="_blank" rel="noopener">Imprimir</a><a class="top-action" href="${DISCORD_URL}" target="_blank" rel="noopener">Discord</a>${canRestart?`<button id="topRestartGame" class="top-action" ${(restartGamePending||state.restarting)?'disabled':''}>${(restartGamePending||state.restarting)?'Gerando…':'Reiniciar'}</button>`:''}${includeExit?`<button id="exitRoom" class="top-action danger-link">${exitLabel}</button>`:''}</div>`;
@@ -205,7 +205,8 @@
     return `<div class="paper-wrap ${interactive?'interactive':''}"><div class="paper-tools-slot"></div><div class="a5-paper"><canvas class="paper-base" id="${idPrefix}Base" width="740" height="1050"></canvas><canvas class="draw-layer" id="${idPrefix}Draw" width="740" height="1050"></canvas>${interactive?'<div id="pointerDot" class="pointer-dot"></div>':''}</div></div>`;
   }
   function trackCardMarkup() {
-    return `<aside class="track-panel"><div class="track-panel-head"><div><small>Carta do Copiloto</small><strong>Pista da etapa</strong></div><span class="clockwise">↻ Horário</span></div><div class="track-card"><canvas id="trackCanvas" width="740" height="1050"></canvas></div><div class="start-readout">Início <strong>${esc(state.track?.startLabel||'')}</strong></div></aside>`;
+    const advanced=!!state.track?.advancedSpecials?.gates?.length;
+    return `<aside class="track-panel"><div class="track-panel-head"><div><small>Carta do Copiloto</small><strong>Pista da etapa</strong></div><span class="clockwise">↻ Horário</span></div><div class="track-card"><canvas id="trackCanvas" width="740" height="1050"></canvas></div><div class="start-readout">Início <strong>${esc(state.track?.startLabel||'')}</strong></div>${advanced?'<div class="advanced-special-legend"><span><i class="adv-swatch bonus"></i>Bônus na pista</span><span><i class="adv-swatch penalty"></i>Revés: 1 de cada lado</span></div>':''}</aside>`;
   }
   function smartphoneRaceView() {
     const me=myPlayer(), team=myTeam();
@@ -393,10 +394,12 @@
         : ranking.length===2
           ? 'Bônus de chegada: 1º +7 · 2º +0.'
           : 'Sem bônus de chegada em partida com uma única dupla.';
+    const advancedRule=state.difficulty==='hard'?' No Avançado, bônus verdes somam se o traço alcançar a célula correta; revés vermelhos subtraem se o traço entrar na célula lateral.':'';
+    const advancedScore=state.difficulty==='hard';
     app.innerHTML=`<main class="result-shell">${raceHeader()}<section class="result-card"><p class="eyebrow">Resultado da etapa</p><h1>${ranking[0]?`Equipe ${COLOR_LABELS[ranking[0].color]} vence!`:'Resultado'}</h1>
-      <p class="helper center">Correção pelo acetato virtual · ${gridLabel}. Cada célula correta alcançada vale 1 ponto. ${finishRule}</p>
-      <div class="score-table"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span><span>Chegada</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}</span><span>${r.routeScore}/${r.targetCellCount}</span><span>${r.finishPlace?`${r.finishPlace}º · `:''}+${r.bonus}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
-      <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>Equipe ${COLOR_LABELS[r.color]}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span><strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos · ${r.finishPlace?`${r.finishPlace}º a concluir · `:''}+${r.bonus} chegada · ${fmtMs(r.elapsedMs)}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
+      <p class="helper center">Correção pelo acetato virtual · ${gridLabel}. Cada célula correta alcançada vale 1 ponto. ${finishRule}${advancedRule}</p>
+      <div class="score-table ${advancedScore?'advanced-score':''}"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span>${advancedScore?'<span>Especiais</span>':''}<span>Chegada</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}</span><span>${r.routeScore}/${r.targetCellCount}</span>${advancedScore?`<span class="advanced-score-cell"><b class="adv-plus">+${r.advancedBonus||0}</b> <b class="adv-minus">${r.advancedPenalty||0}</b></span>`:''}<span>${r.finishPlace?`${r.finishPlace}º · `:''}+${r.bonus}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
+      <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>Equipe ${COLOR_LABELS[r.color]}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span><strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos${state.difficulty==='hard'?` · especiais +${r.advancedBonus||0} ${r.advancedPenalty||0}`:''} · ${r.finishPlace?`${r.finishPlace}º a concluir · `:''}+${r.bonus} chegada · ${fmtMs(r.elapsedMs)}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
       <div class="result-actions">${me.id===state.hostId?`<button id="restartGame" class="primary-button" ${(restartGamePending||state.restarting)?'disabled':''}>${(restartGamePending||state.restarting)?'Gerando nova pista…':'Reiniciar partida'}</button>`:`<span>${state.restarting?'O anfitrião está gerando uma nova pista…':'Aguardando o anfitrião para reiniciar.'}</span>`}<button id="leaveResult" class="secondary-button">Sair</button></div></section></main>`;
     drawTrack('resultOriginal', state.track);
     for(const r of ranking){
@@ -453,9 +456,38 @@
   function renderOps(id, ops) {
     const c=document.getElementById(id); if(!c) return; const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);for(const op of ops)applyOp(ctx,c,op);
   }
+  function drawAdvancedSpecialMarkers(ctx,W,H,specials){
+    if(!specials?.gates?.length)return;
+    const cols=Number(specials.cols)||16, rows=Number(specials.rows)||24;
+    const cw=W/cols, ch=H/rows;
+    const drawCell=(index,label,kind)=>{
+      const row=Math.floor(index/cols), col=index%cols;
+      const x=col*cw, y=row*ch;
+      const pad=Math.max(1,Math.min(cw,ch)*0.08);
+      ctx.save();
+      ctx.fillStyle=kind==='bonus'?'rgba(60,165,68,.88)':'rgba(213,63,58,.86)';
+      ctx.strokeStyle=kind==='bonus'?'rgba(25,105,35,.95)':'rgba(132,31,29,.95)';
+      ctx.lineWidth=Math.max(1.5,W/500);
+      const rx=x+pad, ry=y+pad, rw=cw-pad*2, rh=ch-pad*2;
+      ctx.beginPath();
+      if(ctx.roundRect)ctx.roundRect(rx,ry,rw,rh,Math.min(rw,rh)*0.16);else ctx.rect(rx,ry,rw,rh);
+      ctx.fill();ctx.stroke();
+      ctx.fillStyle='#fff';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.font=`900 ${Math.max(15,Math.min(cw,ch)*0.42)}px system-ui`;
+      ctx.fillText(label,x+cw/2,y+ch/2+1);
+      ctx.restore();
+    };
+    for(const gate of specials.gates){
+      drawCell(gate.trackCell,`+${gate.bonus}`,'bonus');
+      drawCell(gate.leftCell,String(gate.penalty),'penalty');
+      drawCell(gate.rightCell,String(gate.penalty),'penalty');
+    }
+  }
   function drawTrack(id, track) {
     const c=document.getElementById(id); if(!c||!track?.points) return; const ctx=c.getContext('2d'),W=c.width,H=c.height;ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
     ctx.strokeStyle='#151719';ctx.lineWidth=7;ctx.lineCap='round';ctx.lineJoin='round';ctx.beginPath();track.points.forEach((p,i)=>i?ctx.lineTo(p.x*W,p.y*H):ctx.moveTo(p.x*W,p.y*H));ctx.stroke();
+    drawAdvancedSpecialMarkers(ctx,W,H,track.advancedSpecials);
     const s=track.start;ctx.fillStyle='#fff';ctx.strokeStyle='#111';ctx.lineWidth=4;ctx.beginPath();ctx.arc(s.x*W,s.y*H,11,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#111';ctx.font='bold 17px system-ui';ctx.fillText(track.startLabel||'INÍCIO',Math.min(W-100,s.x*W+18),Math.max(28,s.y*H-12));ctx.font='bold 25px system-ui';ctx.fillText('↻',Math.min(W-40,s.x*W+16),s.y*H+18);
   }
   function drawResultDrawing(id,start,ops){
@@ -511,6 +543,7 @@
     for(let col=0;col<=cols;col++){const x=col*W/cols;ctx.moveTo(x,0);ctx.lineTo(x,H);}
     for(let row=0;row<=rows;row++){const y=row*H/rows;ctx.moveTo(0,y);ctx.lineTo(W,y);}
     ctx.stroke();
+    drawAdvancedSpecialMarkers(ctx,W,H,state?.track?.advancedSpecials);
     ctx.restore();
   }
   function drawScannedResult(id,dataUrl,acetate,showAcetate){

@@ -945,7 +945,7 @@ function createRoomData(name, difficulty, socketId, mode='online') {
   const room = {
     code, mode, difficulty, hostId: id, status: 'lobby', createdAt: Date.now(), updatedAt: Date.now(),
     players: { [id]: player }, playerOrder: [id], track: null, chips: [null,null,null,null],
-    startedAt: null, countdownEndsAt: null, results: null, teamStates: {}, smartphoneStarts: {}, restarting:false, finishCounter:0
+    startedAt: null, countdownEndsAt: null, results: null, teamStates: {}, smartphoneStarts: {}, advancedSpecials: null, restarting:false, finishCounter:0
   };
   rooms.set(code, room);
   return { room, player };
@@ -1186,7 +1186,7 @@ function initializeTeamStates(room) {
       copilotId: slots[color].copilot.id,
       ops: [], bonus: 0, finishPlace: null, finishOrder: null, finishedAt: null, elapsedMs: null,
       pilotConfirmed: false, copilotConfirmed: false,
-      routeScore: null, targetCellCount: null, total: null,
+      routeScore: null, targetCellCount: null, advancedBonus: 0, advancedPenalty: 0, advancedNet: 0, total: null,
       scanSubmitted:false, scanCells:null, scanImage:null,
       smartphoneStart: smartphone ? room.smartphoneStarts[color] : null
     };
@@ -1197,6 +1197,7 @@ function roomClientShape(room, viewer) {
   const smartphone = room.mode === 'smartphone';
   const canSeeTrack = room.status === 'finished' || (viewer && ((smartphone && room.status !== 'lobby') || (viewer.role === 'copilot' && room.status !== 'lobby')));
   const ownColor = viewer?.color || null;
+  const canSeeAdvanced = room.difficulty === 'hard' && viewer?.role === 'copilot';
   const drawings = {};
   if (room.status === 'finished') {
     for (const [color, t] of Object.entries(room.teamStates)) drawings[color] = t.ops;
@@ -1211,6 +1212,8 @@ function roomClientShape(room, viewer) {
         const st=room.smartphoneStarts[ownColor];
         track={...track,start:st.point,startLabel:st.label,startSide:st.side};
       }
+      if (canSeeAdvanced && room.advancedSpecials) track.advancedSpecials = room.advancedSpecials;
+      else if (track.advancedSpecials) delete track.advancedSpecials;
     } else track={ start:room.track.start, startLabel:room.track.startLabel, clockwise:true };
   }
   return {
@@ -1337,6 +1340,131 @@ function targetAcetate(room) {
   const {cols,rows}=acetateGrid(room.difficulty);
   return {cols,rows,...cellsFromMask(targetMask,W,H,cols,rows)};
 }
+
+function orderedTrackCells(room) {
+  const { cols, rows } = acetateGrid(room.difficulty);
+  const pts = room.track?.points || [];
+  const seq = [];
+  const seen = new Set();
+  const pushPoint = p => {
+    const col = clamp(Math.floor(p.x * cols), 0, cols - 1);
+    const row = clamp(Math.floor(p.y * rows), 0, rows - 1);
+    const index = row * cols + col;
+    if (!seen.has(index)) { seen.add(index); seq.push(index); }
+  };
+  if (!pts.length) return seq;
+  pushPoint(pts[0]);
+  for (let i = 1; i < pts.length; i += 1) {
+    const a = pts[i - 1], b = pts[i];
+    const dx = (b.x - a.x) * cols;
+    const dy = (b.y - a.y) * rows;
+    const steps = Math.max(2, Math.ceil(Math.hypot(dx, dy) * 12));
+    for (let s = 1; s <= steps; s += 1) {
+      const t = s / steps;
+      pushPoint({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+    }
+  }
+  return seq;
+}
+function cellRowCol(index, cols) { return { row: Math.floor(index / cols), col: index % cols }; }
+function circularCellDistance(a, b, length) {
+  const d = Math.abs(a - b);
+  return Math.min(d, length - d);
+}
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = crypto.randomInt(0, i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+function sideCellsForAnchor(seq, pathIndex, cols, rows, targetSet) {
+  const n = seq.length;
+  if (n < 3) return null;
+  const prev = cellRowCol(seq[(pathIndex - 1 + n) % n], cols);
+  const cur = cellRowCol(seq[pathIndex], cols);
+  const next = cellRowCol(seq[(pathIndex + 1) % n], cols);
+  let tx = next.col - prev.col;
+  let ty = next.row - prev.row;
+  if (Math.abs(tx) + Math.abs(ty) < 1e-6) {
+    tx = next.col - cur.col; ty = next.row - cur.row;
+  }
+  const len = Math.hypot(tx, ty) || 1;
+  const nx = -ty / len, ny = tx / len;
+  const offsets = [];
+  for (let dr = -1; dr <= 1; dr += 1) for (let dc = -1; dc <= 1; dc += 1) {
+    if (!dr && !dc) continue;
+    const ol = Math.hypot(dc, dr);
+    offsets.push({ dc, dr, ax: dc / ol, ay: dr / ol });
+  }
+  const pickSide = sign => {
+    const candidates = offsets
+      .map(o => ({ ...o, score: (o.ax * nx + o.ay * ny) * sign }))
+      .sort((a,b)=>b.score-a.score);
+    for (const o of candidates) {
+      if (o.score < 0.35) break;
+      const row = cur.row + o.dr, col = cur.col + o.dc;
+      if (row < 0 || row >= rows || col < 0 || col >= cols) continue;
+      const idx = row * cols + col;
+      if (!targetSet.has(idx)) return idx;
+    }
+    return null;
+  };
+  const left = pickSide(1), right = pickSide(-1);
+  if (left == null || right == null || left === right) return null;
+  return { left, right };
+}
+function generateAdvancedSpecials(room) {
+  if (room.difficulty !== 'hard' || !room.track?.points) return null;
+  const target = targetAcetate(room);
+  const targetSet = new Set(target.indexes);
+  const seq = orderedTrackCells(room).filter(i => targetSet.has(i));
+  if (seq.length < 20) return null;
+  const valid = [];
+  for (let i = 0; i < seq.length; i += 1) {
+    const sides = sideCellsForAnchor(seq, i, target.cols, target.rows, targetSet);
+    if (sides) valid.push({ pathIndex:i, trackCell:seq[i], ...sides });
+  }
+  shuffleInPlace(valid);
+  const chosen = [];
+  const usedSpecialCells = new Set();
+  for (const candidate of valid) {
+    const cells=[candidate.trackCell,candidate.left,candidate.right];
+    const separated=chosen.every(c => circularCellDistance(candidate.pathIndex, c.pathIndex, seq.length) >= 6);
+    const distinct=cells.every(index=>!usedSpecialCells.has(index));
+    if (separated && distinct) {
+      chosen.push(candidate);
+      cells.forEach(index=>usedSpecialCells.add(index));
+      if (chosen.length === 3) break;
+    }
+  }
+  if (chosen.length < 3) return null;
+  const bonusValues = shuffleInPlace([15,10,5]);
+  const penaltyValues = shuffleInPlace([-20,-15,-10,-5]).slice(0,3);
+  const gates = chosen
+    .sort((a,b)=>a.pathIndex-b.pathIndex)
+    .map((c,i)=>({
+      trackCell:c.trackCell,
+      leftCell:c.left,
+      rightCell:c.right,
+      bonus:bonusValues[i],
+      penalty:penaltyValues[i],
+      pathIndex:c.pathIndex
+    }));
+  return { cols:target.cols, rows:target.rows, minTrackDistance:6, gates };
+}
+function scoreAdvancedSpecials(room, occupied) {
+  const specials = room.advancedSpecials;
+  if (room.difficulty !== 'hard' || !specials?.gates?.length) return { advancedBonus:0, advancedPenalty:0, advancedNet:0 };
+  const has = index => occupied instanceof Set ? occupied.has(index) : !!occupied[index];
+  let advancedBonus = 0, advancedPenalty = 0;
+  for (const gate of specials.gates) {
+    if (has(gate.trackCell)) advancedBonus += gate.bonus;
+    if (has(gate.leftCell)) advancedPenalty += gate.penalty;
+    if (has(gate.rightCell)) advancedPenalty += gate.penalty;
+  }
+  return { advancedBonus, advancedPenalty, advancedNet:advancedBonus + advancedPenalty };
+}
 function scoreTeam(room, team) {
   // Folha A5 virtual. O tamanho físico da tela não interfere na aferição.
   const W=592,H=840;
@@ -1348,11 +1476,13 @@ function scoreTeam(room, team) {
   const target=targetAcetate(room);
   const player=cellsFromMask(playerMask,W,H,target.cols,target.rows);
   const hitCells=target.indexes.filter(index=>player.occupied[index]);
+  const advanced=scoreAdvancedSpecials(room,player.occupied);
   return {
     score:hitCells.length,
     targetCellCount:target.indexes.length,
     playerCellCount:player.indexes.length,
-    acetate:{cols:target.cols,rows:target.rows,targetCells:target.indexes,hitCells}
+    acetate:{cols:target.cols,rows:target.rows,targetCells:target.indexes,hitCells},
+    ...advanced
   };
 }
 function scoreSmartphoneTeam(room, team) {
@@ -1360,11 +1490,13 @@ function scoreSmartphoneTeam(room, team) {
   const playerCells=Array.isArray(team.scanCells)?team.scanCells:[];
   const playerSet=new Set(playerCells);
   const hitCells=target.indexes.filter(index=>playerSet.has(index));
+  const advanced=scoreAdvancedSpecials(room,playerSet);
   return {
     score:hitCells.length,
     targetCellCount:target.indexes.length,
     playerCellCount:playerSet.size,
-    acetate:{cols:target.cols,rows:target.rows,targetCells:target.indexes,hitCells}
+    acetate:{cols:target.cols,rows:target.rows,targetCells:target.indexes,hitCells},
+    ...advanced
   };
 }
 function finishBonusByTeamCount(teamCount) {
@@ -1402,7 +1534,10 @@ function maybeFinishRoom(room) {
     const scored=smartphone?scoreSmartphoneTeam(room,t):scoreTeam(room,t);
     t.routeScore=scored.score;
     t.targetCellCount=scored.targetCellCount;
-    t.total=t.routeScore+t.bonus;
+    t.advancedBonus=scored.advancedBonus||0;
+    t.advancedPenalty=scored.advancedPenalty||0;
+    t.advancedNet=scored.advancedNet||0;
+    t.total=t.routeScore+t.bonus+t.advancedNet;
     return {
       color,
       routeScore:t.routeScore,
@@ -1410,6 +1545,9 @@ function maybeFinishRoom(room) {
       playerCellCount:scored.playerCellCount,
       bonus:t.bonus,
       finishPlace:t.finishPlace,
+      advancedBonus:t.advancedBonus,
+      advancedPenalty:t.advancedPenalty,
+      advancedNet:t.advancedNet,
       total:t.total,
       elapsedMs:t.elapsedMs,
       ops:t.ops,
@@ -1423,7 +1561,7 @@ function maybeFinishRoom(room) {
   room.results={
     ranking:rows,
     finishedAt:Date.now(),
-    scoring:'acetate-cells-plus-finish-bonus',
+    scoring:'acetate-cells-plus-finish-bonus-plus-advanced-specials',
     grid:acetateGrid(room.difficulty),
     mode:room.mode||'online'
   };
@@ -1565,6 +1703,7 @@ io.on('connection', socket => {
     setImmediate(() => {
       try {
         generateTrackForRoom(room);
+        room.advancedSpecials=generateAdvancedSpecials(room);
         room.chips=[null,null,null,null];
         room.results=null;
         room.startedAt=null;
@@ -1665,6 +1804,7 @@ io.on('connection', socket => {
     setImmediate(() => {
       try {
         generateTrackForRoom(room);
+        room.advancedSpecials=generateAdvancedSpecials(room);
         room.chips=[null,null,null,null];
         room.results=null;
         room.startedAt=null;
