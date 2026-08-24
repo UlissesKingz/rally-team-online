@@ -3,6 +3,7 @@
   const app = document.querySelector('#app');
   const DISCORD_URL = 'https://discord.gg/EJCHTwQjDz';
   const PRINT_URL = 'https://drive.google.com/file/d/1NTREN6puV1vzGzoSEqJDpfxvFYwyMZxM/view?usp=sharing';
+  const SOUND_URLS = { button:'/button.mp3', beep:'/countdown-beep.mp3', start:'/start.mp3' };
   const COLORS = ['blue','red','green','yellow'];
   const COLOR_LABELS = { blue:'Azul', red:'Vermelha', green:'Verde', yellow:'Amarela' };
   const ROLE_LABELS = { pilot:'Piloto', copilot:'Copiloto' };
@@ -33,6 +34,29 @@
   let scanWorkSize = null;
   let startGamePending = false;
   let restartGamePending = false;
+  let introSeen = sessionStorage.getItem('rallyTeamIntroSeen') === '1';
+  let lastCountdownBeep = null;
+  let startSoundPlayed = false;
+  let rallyFlashUntil = 0;
+  let rallyFlashTimer = null;
+
+  function playSound(name, volume=1) {
+    const src=SOUND_URLS[name];
+    if(!src)return;
+    try{
+      const audio=new Audio(src);
+      audio.volume=Math.max(0,Math.min(1,volume));
+      audio.play().catch(()=>{});
+    }catch{}
+  }
+  function triggerRallyFlash() {
+    rallyFlashUntil=Math.max(rallyFlashUntil,Date.now()+1050);
+    if(!startSoundPlayed){ startSoundPlayed=true; playSound('start',1); }
+    clearTimeout(rallyFlashTimer);
+    rallyFlashTimer=setTimeout(()=>{
+      if(Date.now()>=rallyFlashUntil && state?.status==='racing') render();
+    },1100);
+  }
 
   function loadIdentity() {
     try { return JSON.parse(sessionStorage.getItem('rallyTeamIdentity') || 'null') || {}; } catch { return {}; }
@@ -65,6 +89,7 @@
   }
   function requestStartGame() {
     if (startGamePending) return;
+    playSound('button',1);
     startGamePending = true;
     render();
     socket.emit('startGame', {}, res => {
@@ -109,9 +134,20 @@
     });
   }
 
+  function introView() {
+    app.innerHTML = `<main class="intro-shell cover-screen intro-darkened"><div class="intro-actions">${topLinks(false)}</div><section class="intro-center"><button id="enterExperience" class="primary-button intro-start-button">Iniciar</button></section></main>`;
+    const enterBtn = document.querySelector('#enterExperience');
+    if (enterBtn) enterBtn.onclick = () => {
+      playSound('button',1);
+      introSeen = true;
+      sessionStorage.setItem('rallyTeamIntroSeen','1');
+      render();
+    };
+  }
+
   function entryView() {
     const smartphone=entryMode==='smartphone';
-    app.innerHTML = `<main class="entry-shell"><header class="entry-top">${brand()}${topLinks(false)}</header><section class="entry-card">
+    app.innerHTML = `<main class="entry-shell cover-screen entry-cover"><header class="entry-top header-lite">${topLinks(false)}</header><div class="cover-spotlight"><img src="/logo.png" alt="Rally Team" class="cover-spotlight-logo"></div><section class="entry-card cover-card">
       <p class="eyebrow">Comunicação · precisão · velocidade</p><h1>${smartphone?'Piloto no papel. Copiloto no celular.':'Pilote sem ver a pista.'}</h1><p class="lead">${smartphone?'No modo Smartphone, somente os Copilotos entram na sala. O Piloto desenha na folha física A5 e a câmera faz a correção pelo acetato virtual.':'Forme uma dupla com Piloto e Copiloto. O navegador vê o percurso; o piloto recebe apenas a folha.'}</p>
       <div class="mode-switch"><button type="button" data-entry-mode="online" class="${!smartphone?'active':''}">Jogar Online</button><button type="button" data-entry-mode="smartphone" class="${smartphone?'active':''}">Smartphone</button></div>
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
@@ -146,6 +182,7 @@
     }));
     const name=()=>document.querySelector('#playerName').value.trim();
     document.querySelector('#createRoom').onclick=()=>{
+      playSound('button',1);
       const difficulty=document.querySelector('input[name="difficulty"]:checked').value;
       emitAck('createRoom',{name:name(),difficulty,mode:entryMode},res=>{saveIdentity({name:name(),difficulty,mode:res.mode||entryMode,roomCode:res.code,playerId:res.playerId,token:res.token});});
     };
@@ -182,8 +219,8 @@
     if(state.mode==='smartphone'){smartphoneLobbyView();return;}
     const me=myPlayer();
     const complete = COLORS.filter(c=>state.teams[c].pilot&&state.teams[c].copilot).length;
-    app.innerHTML=`<main class="lobby-shell"><header class="game-topbar">${brand()}<div class="room-pill">Sala <strong>${esc(state.code)}</strong></div>${topLinks(true,'Retornar')}</header>
-      <section class="lobby-card"><div class="lobby-head"><div><p class="eyebrow">Lobby · ${state.difficulty==='hard'?'Difícil':'Fácil'}</p><h1>Monte as duplas</h1><p>Escolham a mesma cor, com um Piloto e um Copiloto.</p></div><div class="room-code-big"><small>Código</small><strong>${esc(state.code)}</strong><button id="copyCode">Copiar</button></div></div>
+    app.innerHTML=`<main class="lobby-shell cover-screen lobby-cover"><header class="game-topbar header-lite"><div class="room-pill">Sala <strong>${esc(state.code)}</strong></div>${topLinks(true,'Retornar')}</header><div class="cover-spotlight lobby-spotlight"><img src="/logo.png" alt="Rally Team" class="cover-spotlight-logo"></div>
+      <section class="lobby-card cover-card"><div class="lobby-head"><div><p class="eyebrow">Lobby · ${state.difficulty==='hard'?'Difícil':'Fácil'}</p><h1>Monte as duplas</h1><p>Escolham a mesma cor, com um Piloto e um Copiloto.</p></div><div class="room-code-big"><small>Código</small><strong>${esc(state.code)}</strong><button id="copyCode">Copiar</button></div></div>
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
       <div class="teams-grid">${COLORS.map(color=>`<article class="team-card team-${color}"><div class="team-title"><span class="team-dot"></span><strong>Equipe ${COLOR_LABELS[color]}</strong>${state.teams[color].pilot&&state.teams[color].copilot?'<span class="complete-badge">Dupla pronta</span>':''}</div><div class="slots">${playerSlot(color,'pilot')}${playerSlot(color,'copilot')}</div></article>`).join('')}</div>
       <div class="lobby-bottom"><div><strong>${complete}</strong> dupla${complete===1?'':'s'} completa${complete===1?'':'s'} · ${state.players.length}/8 jogadores</div>${me?.id===state.hostId?`<button id="startGame" class="primary-button" ${(state.canStart&&!startGamePending)?'':'disabled'}>${startGamePending?'Gerando pista…':'Iniciar partida'}</button>`:`<span class="waiting-host">${state.status==='starting'?'O anfitrião já iniciou. Aguarde…':'Aguardando o anfitrião iniciar'}</span>`}</div>
@@ -223,7 +260,7 @@
         <div class="smartphone-track-wrap"><div class="smartphone-track-card">${trackCardMarkup()}</div><div class="smartphone-instructions"><strong>Seu ponto de largada</strong><span>${esc(sideNames[start?.side]||'ponto indicado')}</span><b>${esc(start?.label||state.track?.startLabel||'')}</b><p>O Piloto inicia exatamente nesse ponto da cruz central da folha e percorre a pista no sentido horário.</p></div></div>
       </section>
       <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${ready?'Você está pronto. Aguardando os demais Copilotos.':'Confira a folha do Piloto e sua largada antes de confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="primary-button finish-team-button">Concluímos</button><small>Ao concluir, seu tempo para e a câmera será aberta para corrigir a folha física.</small>`:''}${finished&&team?.scanSubmitted?`<div class="finish-banner">FOLHA ENVIADA · ${fmtMs(team.elapsedMs)} <small>Aguardando as demais duplas fotografarem suas folhas.</small></div>`:''}</section>
-      ${countdown?'<div id="countdownOverlay" class="countdown-overlay"><div><small>LARGADA EM</small><strong id="countdownNumber">10</strong></div></div>':''}
+      ${(countdown || (racing && rallyFlashUntil>Date.now()))?`<div id="countdownOverlay" class="countdown-overlay"><div><small>${countdown?'LARGADA EM':' '}</small><strong id="countdownNumber">${countdown?'10':'RALLY!'}</strong></div></div>`:''}
     </main>`;
     if(state.track?.points)drawTrack('trackCanvas',state.track);
     const readyBtn=document.querySelector('#readyBtn');if(readyBtn)readyBtn.onclick=()=>emitAck('setReady',{ready:!ready});
@@ -260,7 +297,7 @@
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
       ${roleMain}
       <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${team?.pilot?.ready&&team?.copilot?.ready?'Sua dupla está pronta.':'Piloto e Copiloto precisam confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="${myConfirmed?'secondary-button':'primary-button'} finish-team-button" ${myConfirmed?'disabled aria-disabled="true"':''}>${myConfirmed?'Você confirmou ✓':'Concluímos'}</button><div class="finish-status"><span>Piloto: <strong>${team?.pilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><span>Copiloto: <strong>${team?.copilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><small>${myConfirmed?`Aguardando ${mateRoleLabel} confirmar.`:mateConfirmed?`${mateRoleLabel} já confirmou. Você pode concluir agora, mesmo com o desenho incompleto ou vazio.`:'A conclusão não depende do desenho. Piloto e Copiloto apenas confirmam quando quiserem encerrar.'}</small></div>`:''}${finished?`<div class="finish-banner">CONCLUÍDO · ${fmtMs(team.finishedAt-state.startedAt)} <small>Desenho bloqueado. Aguardando as demais duplas concluírem.</small></div>`:''}</section>
-      ${countdown?'<div id="countdownOverlay" class="countdown-overlay"><div><small>LARGADA EM</small><strong id="countdownNumber">10</strong></div></div>':''}
+      ${(countdown || (racing && rallyFlashUntil>Date.now()))?`<div id="countdownOverlay" class="countdown-overlay"><div><small>${countdown?'LARGADA EM':' '}</small><strong id="countdownNumber">${countdown?'10':'RALLY!'}</strong></div></div>`:''}
     </main>`;
     const ownOps=state.drawings?.[me.color] || [];
     localOps = ownOps.slice();
@@ -427,7 +464,7 @@
 
   function render() {
     stopTimers();
-    if(!state) entryView();
+    if(!state) { if(!introSeen) introView(); else entryView(); }
     else if(state.status==='lobby' || state.status==='starting') lobbyView();
     else if(state.status==='finished') resultView();
     else prepRaceView();
@@ -722,14 +759,17 @@
   function startTimers(){
     const team=myTeam();
     if(state?.status==='racing'&&state.startedAt&&!team?.finishedAt){raceTimer=setInterval(()=>{const el=document.querySelector('#raceClock');if(el)el.textContent=fmtMs(Date.now()-state.startedAt);},31);}
-    if(state?.status==='countdown'&&state.countdownEndsAt){const tick=()=>{const n=document.querySelector('#countdownNumber');if(!n)return;const remain=Math.max(0,state.countdownEndsAt-Date.now());n.textContent=remain<=0?'RALLY!':String(Math.max(1,Math.ceil(remain/1000)));};tick();countdownTimer=setInterval(tick,80);}
+    if(state?.status==='countdown'&&state.countdownEndsAt){const tick=()=>{const n=document.querySelector('#countdownNumber');if(!n)return;const remain=Math.max(0,state.countdownEndsAt-Date.now());if(remain<=0){n.textContent='RALLY!';triggerRallyFlash();return;}const value=Math.max(1,Math.ceil(remain/1000));n.textContent=String(value);if(value>=1&&value<=10&&lastCountdownBeep!==value){lastCountdownBeep=value;playSound('beep',1);}};tick();countdownTimer=setInterval(tick,80);}
   }
   function stopTimers(){if(raceTimer)clearInterval(raceTimer);if(countdownTimer)clearInterval(countdownTimer);raceTimer=null;countdownTimer=null;}
   function leaveRoom(){emitAck('leaveRoom',{},()=>{state=null;scanAnalysis=null;scanSourceImage=null;manualMarkerPoints=[];clearIdentity();notice='';exitConfirm=false;render();});}
   function bindExit(){const b=document.querySelector('#exitRoom');if(!b)return;b.onclick=()=>{if(!exitConfirm){exitConfirm=true;b.textContent='Confirmar saída';setTimeout(()=>{exitConfirm=false;const x=document.querySelector('#exitRoom');if(x)x.textContent='Sair';},2500);}else leaveRoom();};}
 
   socket.on('roomState', next => {
+    const previousStatus=state?.status;
     state=next;
+    if(previousStatus!=='countdown'&&next.status==='countdown'){lastCountdownBeep=null;startSoundPlayed=false;rallyFlashUntil=0;}
+    if(previousStatus==='countdown'&&next.status==='racing')triggerRallyFlash();
     if (next.status !== 'lobby') startGamePending = false;
     if (!next.restarting && next.status !== 'finished') restartGamePending = false;
     const me=next.players.find(p=>p.id===identity.playerId);

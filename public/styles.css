@@ -517,3 +517,104 @@ body:before{
   .brand-logo{width:132px;max-width:42vw}
   .brand-logo.small{width:104px;max-width:34vw}
 }
+
+
+/* v35 — tela inicial e capa de fundo */
+.cover-screen{
+  position:relative;
+  isolation:isolate;
+  background-image:linear-gradient(180deg, rgba(3,13,34,.30), rgba(3,13,34,.70)), url('/cover-bg.png');
+  background-size:cover;
+  background-position:center center;
+  background-repeat:no-repeat;
+}
+.cover-screen::before{
+  content:''; position:absolute; inset:0; z-index:-1;
+  background:linear-gradient(180deg, rgba(3,10,27,.14), rgba(3,10,27,.42));
+}
+.intro-shell{min-height:100vh; padding:22px; display:grid; grid-template-rows:auto 1fr auto;}
+.intro-actions{display:flex; justify-content:flex-end; max-width:1440px; width:100%; margin:0 auto;}
+.intro-center{display:grid; place-items:center; align-content:center; gap:24px; padding:20px; text-align:center;}
+.intro-logo{width:min(420px,78vw); height:auto; filter:drop-shadow(0 14px 32px rgba(0,0,0,.28));}
+.intro-start-button{min-width:220px; font-size:22px; padding:16px 30px; border-radius:18px;}
+.header-lite{justify-content:flex-end;}
+.entry-cover,.lobby-cover{background-position:center 36%;}
+.entry-shell.entry-cover,.lobby-shell.lobby-cover{position:relative;}
+.cover-spotlight{max-width:1440px; width:100%; margin:8px auto 18px; display:flex; justify-content:center; pointer-events:none;}
+.cover-spotlight-logo{width:min(280px,52vw); height:auto; filter:drop-shadow(0 12px 28px rgba(0,0,0,.26));}
+.cover-card{backdrop-filter: blur(8px); background:linear-gradient(180deg, rgba(12,35,87,.86), rgba(8,23,58,.92));}
+.entry-cover .entry-top,.lobby-cover .game-topbar{max-width:1440px; width:100%; margin:0 auto 0;}
+.entry-cover .entry-card{margin-top:0;}
+.entry-card.cover-card,.lobby-card.cover-card{box-shadow:0 34px 84px rgba(2,8,26,.42), inset 0 1px 0 rgba(255,255,255,.08);}
+.lobby-cover .lobby-card{max-width:1280px;}
+.lobby-spotlight{margin-top:4px; margin-bottom:14px;}
+@media (max-width: 860px){
+  .intro-logo{width:min(340px,80vw);}
+  .cover-spotlight-logo{width:min(220px,58vw);}
+  .entry-cover,.lobby-cover{background-position:center 32%;}
+}
+@media (max-width: 620px){
+  .intro-shell{padding:14px 12px;}
+  .intro-actions{justify-content:center;}
+  .intro-logo{width:min(280px,84vw);}
+  .intro-start-button{min-width:190px; font-size:20px; padding:14px 26px;}
+  .header-lite{justify-content:center;}
+  .cover-spotlight{margin:4px auto 12px;}
+  .cover-spotlight-logo{width:min(180px,60vw);}
+  .entry-cover,.lobby-cover{background-position:center 26%;}
+}
+
+
+/* v37 — remove o escurecimento da capa e desce o botão para o capô */
+.intro-darkened::before{
+  background:linear-gradient(180deg, rgba(2,8,24,.06), rgba(2,8,24,.16));
+}
+.intro-shell{
+  background-position:center center;
+}
+.intro-shell::after{
+  content:none;
+}
+.intro-center{
+  gap:18px;
+  align-content:end;
+  padding-bottom:27vh;
+}
+.intro-start-button{
+  box-shadow:0 14px 34px rgba(0,0,0,.18), 0 8px 22px rgba(242,123,39,.22);
+}
+@media (max-width: 860px){
+  .intro-center{padding-bottom:24vh;}
+}
+@media (max-width: 620px){
+  .intro-center{padding-bottom:19vh;}
+}
+
+
+/* v38 — capa inicial sem qualquer sombra/overlay e botão mais baixo */
+.intro-shell.cover-screen{
+  background-image:url('/cover-bg.png') !important;
+  background-size:cover;
+  background-position:center center;
+  background-repeat:no-repeat;
+}
+.intro-shell.cover-screen::before,
+.intro-shell.intro-darkened::before,
+.intro-shell::after{
+  content:none !important;
+  background:none !important;
+  opacity:0 !important;
+}
+.intro-center{
+  align-content:end;
+  padding-bottom:12vh;
+}
+.intro-start-button{
+  box-shadow:none;
+}
+@media (max-width:860px){
+  .intro-center{padding-bottom:10vh;}
+}
+@media (max-width:620px){
+  .intro-center{padding-bottom:8vh;}
+}
