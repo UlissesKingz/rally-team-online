@@ -163,13 +163,13 @@
   function entryView() {
     const smartphone=entryMode==='smartphone';
     app.innerHTML = `<main class="entry-shell cover-screen entry-cover"><header class="entry-top header-lite">${topLinks(false)}</header><div class="cover-spotlight"><img src="/logo.png" alt="Rally Team" class="cover-spotlight-logo"></div><section class="entry-card cover-card">
-      <p class="eyebrow">Comunicação · precisão · velocidade</p><h1>${smartphone?'Piloto no papel. Copiloto no celular.':'Pilote sem ver a pista.'}</h1><p class="lead">${smartphone?'No modo Smartphone, somente os Copilotos entram na sala. O Piloto desenha na folha física A5 e a câmera faz a correção pelo acetato virtual.':'Forme uma dupla com Piloto e Copiloto. O navegador vê o percurso; o piloto recebe apenas a folha.'}</p>
-      <div class="mode-switch"><button type="button" data-entry-mode="online" class="${!smartphone?'active':''}">Jogar Online</button><button type="button" data-entry-mode="smartphone" class="${smartphone?'active':''}">Smartphone</button></div>
+      <p class="eyebrow">Comunicação · precisão · velocidade</p><h1>${smartphone?'Piloto no papel. Copiloto no celular.':'Pilote sem ver a pista.'}</h1><p class="lead">${smartphone?'No modo Presencial, somente os Copilotos entram na sala. O Piloto desenha na folha física A5 e a câmera faz a correção pelo acetato virtual.':'Forme uma dupla com Piloto e Copiloto. O navegador vê o percurso; o piloto recebe apenas a folha.'}</p>
+      <div class="mode-switch"><button type="button" data-entry-mode="online" class="${!smartphone?'active':''}">Jogar Online</button><button type="button" data-entry-mode="smartphone" class="${smartphone?'active':''}">Presencial</button></div>
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
       <label>Seu nome<input id="playerName" maxlength="24" value="${esc(identity.name||'')}" placeholder="Nome"></label>
       <fieldset><legend>Dificuldade da nova sala</legend><div class="difficulty-switch"><label><input type="radio" name="difficulty" value="easy" ${identity.difficulty!=='hard'?'checked':''}><span>Fácil</span></label><label><input type="radio" name="difficulty" value="hard" ${identity.difficulty==='hard'?'checked':''}><span>Difícil</span></label></div></fieldset>
-      <button id="createRoom" class="primary-button wide">Criar sala ${smartphone?'Smartphone':''}</button>
-      <div class="divider"><span>ou entre em uma sala ${smartphone?'Smartphone':''}</span></div>
+      <button id="createRoom" class="primary-button wide">Criar sala ${smartphone?'Presencial':''}</button>
+      <div class="divider"><span>ou entre em uma sala ${smartphone?'Presencial':''}</span></div>
       <div class="join-row"><input id="roomCode" maxlength="4" autocomplete="off" placeholder="CÓDIGO"><button id="joinRoom" class="secondary-button">Entrar</button></div>
       <p class="helper">${smartphone?'A sala aceita de 1 a 4 Copilotos. Cada um joga ao lado de um Piloto com uma folha física.':'A dificuldade de uma sala existente é definida pelo anfitrião.'}</p>
       ${smartphone?'<a class="sheet-download" href="/rally-team-folha-smartphone-a5.pdf" target="_blank">Baixar folha A5 para impressão</a>':''}
@@ -219,7 +219,7 @@
   function smartphoneLobbyView() {
     const me=myPlayer();
     app.innerHTML=`<main class="lobby-shell"><header class="game-topbar">${brand()}<div class="room-pill">Sala <strong>${esc(state.code)}</strong></div>${topLinks(true,'Retornar')}</header>
-      <section class="lobby-card"><div class="lobby-head"><div><p class="eyebrow">Lobby Smartphone · ${state.difficulty==='hard'?'Difícil':'Fácil'}</p><h1>Aguardando os Copilotos</h1><p>Cada pessoa conectada representa uma dupla física: Copiloto no smartphone e Piloto com papel e caneta.</p></div><div class="room-code-big"><small>Código</small><strong>${esc(state.code)}</strong><button id="copyCode">Copiar</button></div></div>
+      <section class="lobby-card"><div class="lobby-head"><div><p class="eyebrow">Lobby Presencial · ${state.difficulty==='hard'?'Difícil':'Fácil'}</p><h1>Aguardando os Copilotos</h1><p>Cada pessoa conectada representa uma dupla física: Copiloto no celular e Piloto com papel e caneta.</p></div><div class="room-code-big"><small>Código</small><strong>${esc(state.code)}</strong><button id="copyCode">Copiar</button></div></div>
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
       <div class="smartphone-players">${state.players.map((p,i)=>`<article class="smartphone-player team-${p.color}"><span class="team-dot"></span><div><small>Dupla ${i+1}</small><strong>${esc(p.name)}</strong></div><span class="smartphone-role">Copiloto · Equipe ${COLOR_LABELS[p.color]}</span>${!p.connected?'<em>desconectado</em>':''}</article>`).join('')}</div>
       <div class="lobby-bottom"><div><strong>${state.players.length}</strong>/4 Copiloto${state.players.length===1?'':'s'} na sala</div>${me?.id===state.hostId?`<button id="startGame" class="primary-button" ${(state.canStart&&!startGamePending)?'':'disabled'}>${startGamePending?'Gerando pista…':'Iniciar partida'}</button>`:`<span class="waiting-host">${state.status==='starting'?'O anfitrião já iniciou. Aguarde…':'Aguardando o anfitrião iniciar'}</span>`}</div>
@@ -250,7 +250,7 @@
 
   function raceHeader() {
     const me=myPlayer();
-    const roleLabel=state.mode==='smartphone'?'Smartphone · Copiloto':ROLE_LABELS[me.role];
+    const roleLabel=state.mode==='smartphone'?'Presencial · Copiloto':ROLE_LABELS[me.role];
     return `<header class="game-topbar">${brand()}<div class="race-meta"><span>Sala <strong>${esc(state.code)}</strong></span><span>${state.difficulty==='hard'?'Difícil':'Fácil'}</span><span class="team-name team-text-${me.color}">Equipe ${COLOR_LABELS[me.color]}</span><span>${roleLabel}</span></div>${topLinks(true,'Sair',true)}</header>`;
   }
   function paperMarkup(idPrefix, interactive=false) {
@@ -271,7 +271,7 @@
     const raceClockValue=finished?fmtMs(team.elapsedMs):(racing?fmtMs(Date.now()-state.startedAt):'00:00.00');
     app.innerHTML=`<main class="game-shell smartphone-game">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div>${racing&&!finished?lastTeamCountdownMarkup():''}</section>
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
-      <section class="smartphone-stage"><div class="stage-head"><div><p class="eyebrow">Modo Smartphone · Copiloto</p><h2>${racing?'Navegue o Piloto':'Prepare a etapa'}</h2></div><div class="live-badge">Piloto no papel físico</div></div>
+      <section class="smartphone-stage"><div class="stage-head"><div><p class="eyebrow">Modo Presencial · Copiloto</p><h2>${racing?'Navegue o Piloto':'Prepare a etapa'}</h2></div><div class="live-badge">Piloto no papel físico</div></div>
         <div class="smartphone-track-wrap"><div class="smartphone-track-card">${trackCardMarkup()}</div><div class="smartphone-instructions"><strong>Seu ponto de largada</strong><span>${esc(sideNames[start?.side]||'ponto indicado')}</span><b>${esc(start?.label||state.track?.startLabel||'')}</b><p>O Piloto inicia exatamente nesse ponto da cruz central da folha e percorre a pista no sentido horário.</p></div></div>
       </section>
       <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${ready?'Você está pronto. Aguardando os demais Copilotos.':'Confira a folha do Piloto e sua largada antes de confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="primary-button finish-team-button">Concluímos</button><small>Ao concluir, seu tempo para e a câmera será aberta para corrigir a folha física.</small>`:''}${finished&&team?.timedOut?`<div class="finish-banner timeout-banner">TEMPO ESGOTADO · 0 PONTOS <small>A dupla não concluiu dentro dos 10 segundos finais.</small></div>`:finished&&team?.scanSubmitted?`<div class="finish-banner">FOLHA ENVIADA · ${fmtMs(team.elapsedMs)} <small>Aguardando as demais duplas fotografarem suas folhas.</small></div>`:''}</section>

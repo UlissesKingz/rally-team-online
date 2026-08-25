@@ -1725,7 +1725,7 @@ io.on('connection', socket => {
     const room=rooms.get(code); if (!room) return ackError(ack,'Sala não encontrada.');
     if (room.status!=='lobby') return ackError(ack,'A partida já foi iniciada.');
     const requestedMode=ROOM_MODES.includes(payload?.mode)?payload.mode:null;
-    if(requestedMode&&requestedMode!==room.mode)return ackError(ack,`Essa sala foi criada no modo ${room.mode==='smartphone'?'Smartphone':'Online'}.`);
+    if(requestedMode&&requestedMode!==room.mode)return ackError(ack,`Essa sala foi criada no modo ${room.mode==='smartphone'?'Presencial':'Online'}.`);
     const maxPlayers=room.mode==='smartphone'?4:8;
     if (room.playerOrder.length>=maxPlayers) return ackError(ack,`A sala já possui ${maxPlayers} jogadores.`);
     const id=makeId(), token=makeToken();
@@ -1746,7 +1746,7 @@ io.on('connection', socket => {
   socket.on('setTeam', (payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
     if (room.status!=='lobby') return ackError(ack,'A equipe só pode ser alterada no lobby.');
-    if (room.mode==='smartphone') return ackError(ack,'No modo Smartphone as cores são atribuídas automaticamente.');
+    if (room.mode==='smartphone') return ackError(ack,'No modo Presencial as cores são atribuídas automaticamente.');
     const color=TEAM_COLORS.includes(payload?.color)?payload.color:null, role=ROLES.includes(payload?.role)?payload.role:null;
     if (!color||!role) return ackError(ack,'Equipe inválida.');
     const occupied=room.playerOrder.some(id=>{const p=room.players[id]; return p.id!==player.id&&p.color===color&&p.role===role;});
@@ -1759,7 +1759,7 @@ io.on('connection', socket => {
     if (player.id!==room.hostId) return ackError(ack,'Somente o anfitrião pode iniciar.');
     if (room.status!=='lobby') return ackError(ack,'A partida já foi iniciada.');
     if (room.mode==='smartphone') {
-      if(room.playerOrder.length<1||room.playerOrder.length>4)return ackError(ack,'O modo Smartphone aceita de 1 a 4 Copilotos.');
+      if(room.playerOrder.length<1||room.playerOrder.length>4)return ackError(ack,'O modo Presencial aceita de 1 a 4 Copilotos.');
     } else {
       if (completeTeams(room).length<1) return ackError(ack,'Forme ao menos uma dupla completa.');
       if (!allPlayersInCompleteTeams(room)) return ackError(ack,'Todos os jogadores precisam estar em uma dupla completa.');
