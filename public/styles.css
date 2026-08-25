@@ -640,3 +640,58 @@ body:before{
 @media(max-width:620px){
   .manual-hero-photo{margin:18px 0 24px;border-radius:13px;}
 }
+
+/* v41 — contagem final da última dupla */
+.last-team-countdown{
+  width:78px;
+  height:78px;
+  flex:0 0 78px;
+  border-radius:50%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+  background:linear-gradient(180deg,#ef3e38,#a81018);
+  border:3px solid rgba(255,255,255,.9);
+  box-shadow:0 8px 24px rgba(92,0,5,.34),0 0 0 5px rgba(238,46,52,.12);
+  color:#fff;
+  text-align:center;
+  line-height:1;
+  user-select:none;
+  animation:last-team-pulse 1s ease-in-out infinite;
+}
+.last-team-countdown small{
+  display:block;
+  margin:0 0 1px;
+  font-size:7px;
+  line-height:1.05;
+  letter-spacing:.09em;
+  font-weight:900;
+  color:#ffe8e8;
+}
+.last-team-countdown strong{
+  display:block;
+  font-size:31px;
+  line-height:.95;
+  font-variant-numeric:tabular-nums;
+  font-family:"Montserrat","Baloo 2",sans-serif;
+  font-weight:900;
+}
+@keyframes last-team-pulse{
+  50%{transform:scale(1.045);box-shadow:0 10px 27px rgba(92,0,5,.4),0 0 0 8px rgba(238,46,52,.07)}
+}
+.timeout-banner{
+  color:#ffd3d3!important;
+  border-color:rgba(239,62,56,.6)!important;
+  background:rgba(104,12,18,.38)!important;
+}
+.timed-out-row{
+  background:rgba(130,20,26,.12)!important;
+}
+@media(max-width:620px){
+  .last-team-countdown{width:66px;height:66px;flex-basis:66px}
+  .last-team-countdown strong{font-size:26px}
+  .last-team-countdown small{font-size:6px}
+}
+\n\n/* v42 — abertura mobile: logo da arte maior e mais alto; demais telas inalteradas */\n@media(max-width:620px){\n  .intro-shell.cover-screen{\n    background-size:auto 120% !important;\n    background-position:center 85% !important;\n  }\n}\n

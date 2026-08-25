@@ -22,6 +22,7 @@
   let lastPoint = null;
   let raceTimer = null;
   let countdownTimer = null;
+  let lastTeamCountdownTimer = null;
   let lastSentAt = 0;
   let pendingSegment = null;
   let exitConfirm = false;
@@ -34,7 +35,15 @@
   let scanWorkSize = null;
   let startGamePending = false;
   let restartGamePending = false;
+  const navEntry = performance.getEntriesByType?.('navigation')?.[0];
+  const pageWasReloaded = navEntry?.type === 'reload' || performance.navigation?.type === 1;
   let introSeen = sessionStorage.getItem('rallyTeamIntroSeen') === '1';
+  // Se a pessoa atualizar enquanto ainda está fora de uma sala, volta para a capa.
+  // Dentro de uma sala, preservamos o fluxo de reconexão existente.
+  if (pageWasReloaded && !identity.roomCode) {
+    introSeen = false;
+    sessionStorage.removeItem('rallyTeamIntroSeen');
+  }
   let lastCountdownBeep = null;
   let startSoundPlayed = false;
   let rallyFlashUntil = 0;
@@ -126,6 +135,12 @@
   }
   function legalFooterMarkup() { return `<footer class="legal-footer">Jogo criado por Ulisses Reis e Marcelo Torres © 2026 — Propriedade intelectual protegida. Reprodução, distribuição ou uso não autorizado são proibidos.</footer>`; }
   function ensureLegalFooter() { if(!app.querySelector('.legal-footer')) app.insertAdjacentHTML('beforeend', legalFooterMarkup()); }
+  function lastTeamCountdownMarkup() {
+    const endsAt=Number(state?.lastTeamCountdown?.endsAt)||0;
+    if(!endsAt)return '';
+    const seconds=Math.max(0,Math.ceil((endsAt-Date.now())/1000));
+    return `<div class="last-team-countdown" title="Última dupla: concluam em 10 segundos ou a pontuação será zerada." role="timer" aria-live="polite"><small>ÚLTIMA<br>DUPLA</small><strong id="lastTeamCountdownNumber">${seconds}</strong></div>`;
+  }
   function setNotice(msg='') { notice=msg; render(); }
   function emitAck(event, payload, onOk) {
     socket.emit(event, payload, res => {
@@ -254,12 +269,12 @@
     const sideNames={top:'linha vertical superior',right:'linha horizontal direita',bottom:'linha vertical inferior',left:'linha horizontal esquerda'};
     const start=team?.smartphoneStart||{side:state.track?.startSide,label:state.track?.startLabel};
     const raceClockValue=finished?fmtMs(team.elapsedMs):(racing?fmtMs(Date.now()-state.startedAt):'00:00.00');
-    app.innerHTML=`<main class="game-shell smartphone-game">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div></section>
+    app.innerHTML=`<main class="game-shell smartphone-game">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div>${racing&&!finished?lastTeamCountdownMarkup():''}</section>
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
       <section class="smartphone-stage"><div class="stage-head"><div><p class="eyebrow">Modo Smartphone · Copiloto</p><h2>${racing?'Navegue o Piloto':'Prepare a etapa'}</h2></div><div class="live-badge">Piloto no papel físico</div></div>
         <div class="smartphone-track-wrap"><div class="smartphone-track-card">${trackCardMarkup()}</div><div class="smartphone-instructions"><strong>Seu ponto de largada</strong><span>${esc(sideNames[start?.side]||'ponto indicado')}</span><b>${esc(start?.label||state.track?.startLabel||'')}</b><p>O Piloto inicia exatamente nesse ponto da cruz central da folha e percorre a pista no sentido horário.</p></div></div>
       </section>
-      <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${ready?'Você está pronto. Aguardando os demais Copilotos.':'Confira a folha do Piloto e sua largada antes de confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="primary-button finish-team-button">Concluímos</button><small>Ao concluir, seu tempo para e a câmera será aberta para corrigir a folha física.</small>`:''}${finished&&team?.scanSubmitted?`<div class="finish-banner">FOLHA ENVIADA · ${fmtMs(team.elapsedMs)} <small>Aguardando as demais duplas fotografarem suas folhas.</small></div>`:''}</section>
+      <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${ready?'Você está pronto. Aguardando os demais Copilotos.':'Confira a folha do Piloto e sua largada antes de confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="primary-button finish-team-button">Concluímos</button><small>Ao concluir, seu tempo para e a câmera será aberta para corrigir a folha física.</small>`:''}${finished&&team?.timedOut?`<div class="finish-banner timeout-banner">TEMPO ESGOTADO · 0 PONTOS <small>A dupla não concluiu dentro dos 10 segundos finais.</small></div>`:finished&&team?.scanSubmitted?`<div class="finish-banner">FOLHA ENVIADA · ${fmtMs(team.elapsedMs)} <small>Aguardando as demais duplas fotografarem suas folhas.</small></div>`:''}</section>
       ${(countdown || (racing && rallyFlashUntil>Date.now()))?`<div id="countdownOverlay" class="countdown-overlay"><div><small>${countdown?'LARGADA EM':' '}</small><strong id="countdownNumber">${countdown?'10':'RALLY!'}</strong></div></div>`:''}
     </main>`;
     if(state.track?.points)drawTrack('trackCanvas',state.track);
@@ -293,10 +308,10 @@
       ? `<section class="pilot-stage"><div class="stage-head"><div><p class="eyebrow">Piloto</p><h2>${racing?'Desenhe o percurso':'Prepare a folha'}</h2></div>${racing&&!finished?`<div class="draw-tools"><button data-tool="draw" class="tool-btn ${tool==='draw'?'active':''}">✎ Desenhar</button><button data-tool="erase" class="tool-btn ${tool==='erase'?'active':''}">⌫ Borracha</button></div>`:''}</div>${paperMarkup('pilot',true)}<p class="paper-caption">Início: <strong>${esc(state.track?.startLabel||'')}</strong> · percurso no sentido horário.</p></section>`
       : `<section class="copilot-stage"><div class="stage-head"><div><p class="eyebrow">Copiloto</p><h2>Acompanhe e navegue</h2></div><div class="live-badge">● desenho ao vivo</div></div><div class="copilot-layout">${paperMarkup('copilot',false)}${trackCardMarkup()}</div></section>`;
     const raceClockValue=finished?fmtMs(team.finishedAt-state.startedAt):(racing?fmtMs(Date.now()-state.startedAt):'00:00.00');
-    app.innerHTML=`<main class="game-shell">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div></section>
+    app.innerHTML=`<main class="game-shell">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div>${racing&&!finished?lastTeamCountdownMarkup():''}</section>
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
       ${roleMain}
-      <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${team?.pilot?.ready&&team?.copilot?.ready?'Sua dupla está pronta.':'Piloto e Copiloto precisam confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="${myConfirmed?'secondary-button':'primary-button'} finish-team-button" ${myConfirmed?'disabled aria-disabled="true"':''}>${myConfirmed?'Você confirmou ✓':'Concluímos'}</button><div class="finish-status"><span>Piloto: <strong>${team?.pilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><span>Copiloto: <strong>${team?.copilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><small>${myConfirmed?`Aguardando ${mateRoleLabel} confirmar.`:mateConfirmed?`${mateRoleLabel} já confirmou. Você pode concluir agora, mesmo com o desenho incompleto ou vazio.`:'A conclusão não depende do desenho. Piloto e Copiloto apenas confirmam quando quiserem encerrar.'}</small></div>`:''}${finished?`<div class="finish-banner">CONCLUÍDO · ${fmtMs(team.finishedAt-state.startedAt)} <small>Desenho bloqueado. Aguardando as demais duplas concluírem.</small></div>`:''}</section>
+      <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${team?.pilot?.ready&&team?.copilot?.ready?'Sua dupla está pronta.':'Piloto e Copiloto precisam confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="${myConfirmed?'secondary-button':'primary-button'} finish-team-button" ${myConfirmed?'disabled aria-disabled="true"':''}>${myConfirmed?'Você confirmou ✓':'Concluímos'}</button><div class="finish-status"><span>Piloto: <strong>${team?.pilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><span>Copiloto: <strong>${team?.copilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><small>${myConfirmed?`Aguardando ${mateRoleLabel} confirmar.`:mateConfirmed?`${mateRoleLabel} já confirmou. Você pode concluir agora, mesmo com o desenho incompleto ou vazio.`:'A conclusão não depende do desenho. Piloto e Copiloto apenas confirmam quando quiserem encerrar.'}</small></div>`:''}${finished&&team?.timedOut?`<div class="finish-banner timeout-banner">TEMPO ESGOTADO · 0 PONTOS <small>Os dois integrantes não confirmaram dentro dos 10 segundos finais.</small></div>`:finished?`<div class="finish-banner">CONCLUÍDO · ${fmtMs(team.finishedAt-state.startedAt)} <small>Desenho bloqueado. Aguardando as demais duplas concluírem.</small></div>`:''}</section>
       ${(countdown || (racing && rallyFlashUntil>Date.now()))?`<div id="countdownOverlay" class="countdown-overlay"><div><small>${countdown?'LARGADA EM':' '}</small><strong id="countdownNumber">${countdown?'10':'RALLY!'}</strong></div></div>`:''}
     </main>`;
     const ownOps=state.drawings?.[me.color] || [];
@@ -432,11 +447,12 @@
           ? 'Bônus de chegada: 1º +7 · 2º +0.'
           : 'Sem bônus de chegada em partida com uma única dupla.';
     const advancedRule=state.difficulty==='hard'?' No Avançado, bônus verdes somam se o traço alcançar a célula correta; revés vermelhos subtraem se o traço entrar na célula lateral.':'';
+    const lastTeamRule=ranking.length>1?' Quando resta apenas uma dupla sem concluir, ela tem 10 segundos para encerrar; se o prazo acabar, sua pontuação total é zerada.':'';
     const advancedScore=state.difficulty==='hard';
     app.innerHTML=`<main class="result-shell">${raceHeader()}<section class="result-card"><p class="eyebrow">Resultado da etapa</p><h1>${ranking[0]?`Equipe ${COLOR_LABELS[ranking[0].color]} vence!`:'Resultado'}</h1>
-      <p class="helper center">Correção pelo acetato virtual · ${gridLabel}. Cada célula correta alcançada vale 1 ponto. ${finishRule}${advancedRule}</p>
-      <div class="score-table ${advancedScore?'advanced-score':''}"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span>${advancedScore?'<span>Especiais</span>':''}<span>Chegada</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}</span><span>${r.routeScore}/${r.targetCellCount}</span>${advancedScore?`<span class="advanced-score-cell"><b class="adv-plus">+${r.advancedBonus||0}</b> <b class="adv-minus">${r.advancedPenalty||0}</b></span>`:''}<span>${r.finishPlace?`${r.finishPlace}º · `:''}+${r.bonus}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
-      <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>Equipe ${COLOR_LABELS[r.color]}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span><strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos${state.difficulty==='hard'?` · especiais +${r.advancedBonus||0} ${r.advancedPenalty||0}`:''} · ${r.finishPlace?`${r.finishPlace}º a concluir · `:''}+${r.bonus} chegada · ${fmtMs(r.elapsedMs)}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
+      <p class="helper center">Correção pelo acetato virtual · ${gridLabel}. Cada célula correta alcançada vale 1 ponto. ${finishRule}${advancedRule}${lastTeamRule}</p>
+      <div class="score-table ${advancedScore?'advanced-score':''}"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span>${advancedScore?'<span>Especiais</span>':''}<span>Chegada</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row ${r.timedOut?'timed-out-row':''}"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}</span><span>${r.timedOut?'0 (tempo)':`${r.routeScore}/${r.targetCellCount}`}</span>${advancedScore?`<span class="advanced-score-cell">${r.timedOut?'<b class="adv-minus">ZERADO</b>':`<b class="adv-plus">+${r.advancedBonus||0}</b> <b class="adv-minus">${r.advancedPenalty||0}</b>`}</span>`:''}<span>${r.timedOut?'Prazo esgotado':`${r.finishPlace?`${r.finishPlace}º · `:''}+${r.bonus}`}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
+      <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>Equipe ${COLOR_LABELS[r.color]}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span>${r.timedOut?`<strong>0 pontos</strong> · prazo final esgotado · ${fmtMs(r.elapsedMs)}`:`<strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos${state.difficulty==='hard'?` · especiais +${r.advancedBonus||0} ${r.advancedPenalty||0}`:''} · ${r.finishPlace?`${r.finishPlace}º a concluir · `:''}+${r.bonus} chegada · ${fmtMs(r.elapsedMs)}`}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
       <div class="result-actions">${me.id===state.hostId?`<button id="restartGame" class="primary-button" ${(restartGamePending||state.restarting)?'disabled':''}>${(restartGamePending||state.restarting)?'Gerando nova pista…':'Reiniciar partida'}</button>`:`<span>${state.restarting?'O anfitrião está gerando uma nova pista…':'Aguardando o anfitrião para reiniciar.'}</span>`}<button id="leaveResult" class="secondary-button">Sair</button></div></section></main>`;
     drawTrack('resultOriginal', state.track);
     for(const r of ranking){
@@ -760,8 +776,9 @@
     const team=myTeam();
     if(state?.status==='racing'&&state.startedAt&&!team?.finishedAt){raceTimer=setInterval(()=>{const el=document.querySelector('#raceClock');if(el)el.textContent=fmtMs(Date.now()-state.startedAt);},31);}
     if(state?.status==='countdown'&&state.countdownEndsAt){const tick=()=>{const n=document.querySelector('#countdownNumber');if(!n)return;const remain=Math.max(0,state.countdownEndsAt-Date.now());if(remain<=0){n.textContent='RALLY!';triggerRallyFlash();return;}const value=Math.max(1,Math.ceil(remain/1000));n.textContent=String(value);if(value>=1&&value<=10&&lastCountdownBeep!==value){lastCountdownBeep=value;playSound('beep',1);}};tick();countdownTimer=setInterval(tick,80);}
+    if(state?.status==='racing'&&state.lastTeamCountdown?.endsAt&&!team?.finishedAt){const tickLast=()=>{const el=document.querySelector('#lastTeamCountdownNumber');if(!el)return;const remain=Math.max(0,Number(state.lastTeamCountdown.endsAt)-Date.now());el.textContent=String(Math.max(0,Math.ceil(remain/1000)));};tickLast();lastTeamCountdownTimer=setInterval(tickLast,80);}
   }
-  function stopTimers(){if(raceTimer)clearInterval(raceTimer);if(countdownTimer)clearInterval(countdownTimer);raceTimer=null;countdownTimer=null;}
+  function stopTimers(){if(raceTimer)clearInterval(raceTimer);if(countdownTimer)clearInterval(countdownTimer);if(lastTeamCountdownTimer)clearInterval(lastTeamCountdownTimer);raceTimer=null;countdownTimer=null;lastTeamCountdownTimer=null;}
   function leaveRoom(){emitAck('leaveRoom',{},()=>{state=null;scanAnalysis=null;scanSourceImage=null;manualMarkerPoints=[];clearIdentity();notice='';exitConfirm=false;render();});}
   function bindExit(){const b=document.querySelector('#exitRoom');if(!b)return;b.onclick=()=>{if(!exitConfirm){exitConfirm=true;b.textContent='Confirmar saída';setTimeout(()=>{exitConfirm=false;const x=document.querySelector('#exitRoom');if(x)x.textContent='Sair';},2500);}else leaveRoom();};}
 

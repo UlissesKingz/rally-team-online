@@ -46,6 +46,7 @@ const ROOM_MODES = ['online', 'smartphone'];
 const rooms = new Map();
 const emptyTimers = new Map();
 const countdownTimers = new Map();
+const finalTeamTimers = new Map();
 const EMPTY_ROOM_MS = 10 * 60 * 1000;
 
 function cleanName(value) {
@@ -945,7 +946,7 @@ function createRoomData(name, difficulty, socketId, mode='online') {
   const room = {
     code, mode, difficulty, hostId: id, status: 'lobby', createdAt: Date.now(), updatedAt: Date.now(),
     players: { [id]: player }, playerOrder: [id], track: null, chips: [null,null,null,null],
-    startedAt: null, countdownEndsAt: null, results: null, teamStates: {}, smartphoneStarts: {}, advancedSpecials: null, restarting:false, finishCounter:0
+    startedAt: null, countdownEndsAt: null, lastTeamDeadline:null, lastTeamColor:null, results: null, teamStates: {}, smartphoneStarts: {}, advancedSpecials: null, restarting:false, finishCounter:0
   };
   rooms.set(code, room);
   return { room, player };
@@ -1184,7 +1185,7 @@ function initializeTeamStates(room) {
       color,
       pilotId: smartphone ? null : slots[color].pilot.id,
       copilotId: slots[color].copilot.id,
-      ops: [], bonus: 0, finishPlace: null, finishOrder: null, finishedAt: null, elapsedMs: null,
+      ops: [], bonus: 0, finishPlace: null, finishOrder: null, finishedAt: null, elapsedMs: null, timedOut:false,
       pilotConfirmed: false, copilotConfirmed: false,
       routeScore: null, targetCellCount: null, advancedBonus: 0, advancedPenalty: 0, advancedNet: 0, total: null,
       scanSubmitted:false, scanCells:null, scanImage:null,
@@ -1239,9 +1240,11 @@ function roomClientShape(room, viewer) {
       copilotConfirmed: !!room.teamStates[c]?.copilotConfirmed,
       finishedAt: room.teamStates[c]?.finishedAt || null,
       elapsedMs: room.teamStates[c]?.elapsedMs || null,
+      timedOut: !!room.teamStates[c]?.timedOut,
       scanSubmitted: !!room.teamStates[c]?.scanSubmitted,
       smartphoneStart: room.teamStates[c]?.smartphoneStart || room.smartphoneStarts[c] || null
     }])),
+    lastTeamCountdown: (room.status==='racing' && room.lastTeamDeadline && room.lastTeamColor===ownColor) ? { endsAt:room.lastTeamDeadline, color:room.lastTeamColor } : null,
     track,
     drawings,
     results: room.status === 'finished' ? room.results : null,
@@ -1267,6 +1270,8 @@ function scheduleEmptyRoom(room) {
     rooms.delete(room.code); emptyTimers.delete(room.code);
     if (countdownTimers.has(room.code)) clearTimeout(countdownTimers.get(room.code));
     countdownTimers.delete(room.code);
+    if (finalTeamTimers.has(room.code)) clearTimeout(finalTeamTimers.get(room.code));
+    finalTeamTimers.delete(room.code);
   }, EMPTY_ROOM_MS));
 }
 function playerBySocket(socket) {
@@ -1520,6 +1525,55 @@ function assignFinishBonuses(room, colors) {
     team.bonus = bonuses[index] || 0;
   });
 }
+function clearLastTeamCountdown(room) {
+  if (!room) return;
+  if (finalTeamTimers.has(room.code)) clearTimeout(finalTeamTimers.get(room.code));
+  finalTeamTimers.delete(room.code);
+  room.lastTeamDeadline = null;
+  room.lastTeamColor = null;
+}
+function maybeStartLastTeamCountdown(room) {
+  if (!room || room.status !== 'racing') { if (room) clearLastTeamCountdown(room); return false; }
+  const colors = Object.keys(room.teamStates || {});
+  if (colors.length <= 1) { clearLastTeamCountdown(room); return false; }
+  const unfinished = colors.filter(color => !room.teamStates[color]?.finishedAt);
+  if (unfinished.length !== 1) {
+    if (unfinished.length === 0 || room.lastTeamDeadline) clearLastTeamCountdown(room);
+    return false;
+  }
+  const color = unfinished[0];
+  if (room.lastTeamColor === color && room.lastTeamDeadline && room.lastTeamDeadline > Date.now()) return false;
+  clearLastTeamCountdown(room);
+  const deadline = Date.now() + 10000;
+  room.lastTeamColor = color;
+  room.lastTeamDeadline = deadline;
+  const timer = setTimeout(() => {
+    finalTeamTimers.delete(room.code);
+    const current = rooms.get(room.code);
+    if (!current || current.status !== 'racing') return;
+    if (current.lastTeamColor !== color || current.lastTeamDeadline !== deadline) return;
+    const team = current.teamStates[color];
+    if (!team || team.finishedAt) { clearLastTeamCountdown(current); emitRoom(current); return; }
+
+    team.timedOut = true;
+    team.finishedAt = deadline;
+    team.finishOrder = ++current.finishCounter;
+    team.elapsedMs = Math.max(0, deadline - current.startedAt);
+    // No Smartphone não há motivo para pedir fotografia: a dupla já zerou a etapa.
+    if (current.mode === 'smartphone') {
+      team.scanSubmitted = true;
+      team.scanCells = [];
+      team.scanImage = null;
+    }
+    current.lastTeamDeadline = null;
+    current.lastTeamColor = null;
+    maybeFinishRoom(current);
+    emitRoom(current);
+  }, Math.max(0, deadline - Date.now()) + 25);
+  finalTeamTimers.set(room.code, timer);
+  return true;
+}
+
 function maybeFinishRoom(room) {
   const colors = Object.keys(room.teamStates);
   if (!colors.length) return false;
@@ -1532,12 +1586,21 @@ function maybeFinishRoom(room) {
   const rows = colors.map(color => {
     const t=room.teamStates[color];
     const scored=smartphone?scoreSmartphoneTeam(room,t):scoreTeam(room,t);
-    t.routeScore=scored.score;
     t.targetCellCount=scored.targetCellCount;
-    t.advancedBonus=scored.advancedBonus||0;
-    t.advancedPenalty=scored.advancedPenalty||0;
-    t.advancedNet=scored.advancedNet||0;
-    t.total=t.routeScore+t.bonus+t.advancedNet;
+    if (t.timedOut) {
+      t.routeScore=0;
+      t.bonus=0;
+      t.advancedBonus=0;
+      t.advancedPenalty=0;
+      t.advancedNet=0;
+      t.total=0;
+    } else {
+      t.routeScore=scored.score;
+      t.advancedBonus=scored.advancedBonus||0;
+      t.advancedPenalty=scored.advancedPenalty||0;
+      t.advancedNet=scored.advancedNet||0;
+      t.total=t.routeScore+t.bonus+t.advancedNet;
+    }
     return {
       color,
       routeScore:t.routeScore,
@@ -1545,6 +1608,7 @@ function maybeFinishRoom(room) {
       playerCellCount:scored.playerCellCount,
       bonus:t.bonus,
       finishPlace:t.finishPlace,
+      timedOut:!!t.timedOut,
       advancedBonus:t.advancedBonus,
       advancedPenalty:t.advancedPenalty,
       advancedNet:t.advancedNet,
@@ -1561,10 +1625,11 @@ function maybeFinishRoom(room) {
   room.results={
     ranking:rows,
     finishedAt:Date.now(),
-    scoring:'acetate-cells-plus-finish-bonus-plus-advanced-specials',
+    scoring:'acetate-cells-plus-finish-bonus-plus-advanced-specials-with-last-team-timeout',
     grid:acetateGrid(room.difficulty),
     mode:room.mode||'online'
   };
+  clearLastTeamCountdown(room);
   room.status='finished';
   return true;
 }
@@ -1574,6 +1639,9 @@ function claimChip() {
 function confirmTeamFinish(room, team, player) {
   if (room.status !== 'racing') return { ok:false, error:'A corrida ainda não está em andamento.' };
   if (team.finishedAt) return { ok:false, error:'Sua dupla já concluiu a pista.' };
+  if (room.lastTeamColor===team.color && room.lastTeamDeadline && Date.now()>=room.lastTeamDeadline) {
+    return { ok:false, error:'O prazo final de 10 segundos terminou.' };
+  }
 
   if (room.mode === 'smartphone') {
     if (player.id !== team.copilotId) return { ok:false, error:'Você não pertence a essa dupla.' };
@@ -1581,6 +1649,7 @@ function confirmTeamFinish(room, team, player) {
     team.finishedAt=Date.now();
     team.finishOrder=++room.finishCounter;
     team.elapsedMs=Math.max(0,team.finishedAt-room.startedAt);
+    maybeStartLastTeamCountdown(room);
     emitRoom(room);
     return {ok:true,confirmedRole:'copilot',teamFinished:true,elapsedMs:team.elapsedMs,roomFinished:false,needsScan:true};
   }
@@ -1601,6 +1670,7 @@ function confirmTeamFinish(room, team, player) {
     team.finishOrder = ++room.finishCounter;
     team.elapsedMs = Math.max(0, team.finishedAt - room.startedAt);
     teamFinished = true;
+    maybeStartLastTeamCountdown(room);
     roomFinished = maybeFinishRoom(room);
   }
   emitRoom(room);
@@ -1617,6 +1687,7 @@ function beginCountdown(room) {
   if (room.status !== 'prep') return;
   const ids = room.playerOrder.filter(id => room.players[id]?.color && room.teamStates[room.players[id].color]);
   if (!ids.length || !ids.every(id => room.players[id].ready && room.players[id].connected)) return;
+  clearLastTeamCountdown(room);
   room.status='countdown'; room.countdownEndsAt=Date.now()+10000;
   emitRoom(room);
   const timer=setTimeout(()=>{
@@ -1631,7 +1702,7 @@ function removePlayer(room, player) {
   delete room.players[player.id];
   room.playerOrder=room.playerOrder.filter(id=>id!==player.id);
   if (room.hostId===player.id) room.hostId=room.playerOrder[0]||null;
-  if (!room.playerOrder.length) { rooms.delete(room.code); cancelEmptyTimer(room.code); return; }
+  if (!room.playerOrder.length) { clearLastTeamCountdown(room); rooms.delete(room.code); cancelEmptyTimer(room.code); return; }
   if (room.status==='lobby') emitRoom(room);
   else emitRoom(room);
 }
@@ -1694,6 +1765,7 @@ io.on('connection', socket => {
       if (!allPlayersInCompleteTeams(room)) return ackError(ack,'Todos os jogadores precisam estar em uma dupla completa.');
     }
 
+    clearLastTeamCountdown(room);
     room.status='starting';
     room.startedAt=null;
     room.countdownEndsAt=null;
@@ -1798,6 +1870,7 @@ io.on('connection', socket => {
     room.restarting=true;
     if (countdownTimers.has(room.code)) clearTimeout(countdownTimers.get(room.code));
     countdownTimers.delete(room.code);
+    clearLastTeamCountdown(room);
     emitRoom(room);
     ackOk(ack);
 
