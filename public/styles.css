@@ -695,3 +695,61 @@ body:before{
   .last-team-countdown small{font-size:6px}
 }
 \n\n/* v42 — abertura mobile: logo da arte maior e mais alto; demais telas inalteradas */\n@media(max-width:620px){\n  .intro-shell.cover-screen{\n    background-size:auto 120% !important;\n    background-position:center 85% !important;\n  }\n}\n
+
+/* v44 — identificação dos vencedores, timeout final e recuperação de conexão */
+.winner-names{
+  display:block;
+  margin-top:8px;
+  font-size:.5em;
+  line-height:1.15;
+  font-weight:800;
+  opacity:.92;
+}
+.result-team-names{
+  display:block;
+  margin-top:3px;
+  font-size:10px;
+  line-height:1.15;
+  font-weight:700;
+  color:var(--muted,#aeb8c8);
+}
+.last-team-countdown.expired{
+  width:156px;
+  flex-basis:156px;
+  border-radius:18px;
+  animation:none;
+}
+.last-team-countdown.expired small{
+  font-size:8px;
+  margin-bottom:3px;
+}
+.last-team-countdown.expired strong{
+  font-size:18px;
+  letter-spacing:.035em;
+}
+.timeout-result-flash{
+  position:fixed;
+  z-index:10050;
+  left:50%;
+  top:18px;
+  transform:translateX(-50%);
+  width:min(430px,calc(100vw - 28px));
+  padding:16px 20px;
+  border-radius:18px;
+  border:2px solid rgba(255,255,255,.9);
+  background:linear-gradient(180deg,#ef3e38,#a81018);
+  color:white;
+  text-align:center;
+  box-shadow:0 14px 40px rgba(76,0,5,.38);
+  pointer-events:none;
+  animation:timeout-result-enter .18s ease-out both;
+}
+.timeout-result-flash strong{display:block;font-size:22px;line-height:1;font-weight:1000;letter-spacing:.025em}
+.timeout-result-flash small{display:block;margin-top:6px;font-size:11px;font-weight:700;color:#ffe7e7}
+@keyframes timeout-result-enter{from{opacity:0;transform:translate(-50%,-12px) scale(.96)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@media(max-width:620px){
+  .last-team-countdown.expired{width:138px;flex-basis:138px}
+  .last-team-countdown.expired strong{font-size:16px}
+  .timeout-result-flash{top:10px;padding:13px 16px}
+  .timeout-result-flash strong{font-size:18px}
+}

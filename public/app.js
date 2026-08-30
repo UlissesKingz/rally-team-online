@@ -1,5 +1,11 @@
 (() => {
-  const socket = io();
+  const socket = io({
+    reconnection:true,
+    reconnectionAttempts:Infinity,
+    reconnectionDelay:500,
+    reconnectionDelayMax:5000,
+    timeout:20000
+  });
   const app = document.querySelector('#app');
   const DISCORD_URL = 'https://discord.gg/EJCHTwQjDz';
   const PRINT_URL = 'https://drive.google.com/file/d/1NTREN6puV1vzGzoSEqJDpfxvFYwyMZxM/view?usp=sharing';
@@ -23,6 +29,8 @@
   let raceTimer = null;
   let countdownTimer = null;
   let lastTeamCountdownTimer = null;
+  let timeoutResultFlashUntil = 0;
+  let timeoutResultFlashTimer = null;
   let lastSentAt = 0;
   let pendingSegment = null;
   let exitConfirm = false;
@@ -435,9 +443,19 @@
     bindExit();
   }
 
+  function resultTeamNames(row) {
+    const names=Array.isArray(row?.memberNames)?row.memberNames.filter(Boolean):[];
+    return names.length ? names.join(' e ') : '';
+  }
+  function resultTeamLabel(row) {
+    const names=resultTeamNames(row);
+    return `Equipe ${COLOR_LABELS[row.color]}${names?` — ${esc(names)}`:''}`;
+  }
+
   function resultView() {
     const me=myPlayer();
     const ranking=state.results?.ranking || [];
+    const winnerNames=ranking[0]?resultTeamNames(ranking[0]):'';
     const gridLabel=state.difficulty==='hard'?'384 células (96 por quadrante)':'96 células (24 por quadrante)';
     const finishRule=ranking.length>=4
       ? 'Bônus de chegada: 1º +10 · 2º +5 · 3º +3 · 4º +0.'
@@ -449,10 +467,10 @@
     const advancedRule=state.difficulty==='hard'?' No Avançado, bônus verdes somam se o traço alcançar a célula correta; revés vermelhos subtraem se o traço entrar na célula lateral.':'';
     const lastTeamRule=ranking.length>1?' Quando resta apenas uma dupla sem concluir, ela tem 10 segundos para encerrar; se o prazo acabar, sua pontuação total é zerada.':'';
     const advancedScore=state.difficulty==='hard';
-    app.innerHTML=`<main class="result-shell">${raceHeader()}<section class="result-card"><p class="eyebrow">Resultado da etapa</p><h1>${ranking[0]?`Equipe ${COLOR_LABELS[ranking[0].color]} vence!`:'Resultado'}</h1>
+    app.innerHTML=`<main class="result-shell">${raceHeader()}<section class="result-card"><p class="eyebrow">Resultado da etapa</p><h1>${ranking[0]?`Equipe ${COLOR_LABELS[ranking[0].color]} vence!${winnerNames?` <span class="winner-names">${esc(winnerNames)}</span>`:''}`:'Resultado'}</h1>
       <p class="helper center">Correção pelo acetato virtual · ${gridLabel}. Cada célula correta alcançada vale 1 ponto. ${finishRule}${advancedRule}${lastTeamRule}</p>
-      <div class="score-table ${advancedScore?'advanced-score':''}"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span>${advancedScore?'<span>Especiais</span>':''}<span>Chegada</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row ${r.timedOut?'timed-out-row':''}"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}</span><span>${r.timedOut?'0 (tempo)':`${r.routeScore}/${r.targetCellCount}`}</span>${advancedScore?`<span class="advanced-score-cell">${r.timedOut?'<b class="adv-minus">ZERADO</b>':`<b class="adv-plus">+${r.advancedBonus||0}</b> <b class="adv-minus">${r.advancedPenalty||0}</b>`}</span>`:''}<span>${r.timedOut?'Prazo esgotado':`${r.finishPlace?`${r.finishPlace}º · `:''}+${r.bonus}`}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
-      <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>Equipe ${COLOR_LABELS[r.color]}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span>${r.timedOut?`<strong>0 pontos</strong> · prazo final esgotado · ${fmtMs(r.elapsedMs)}`:`<strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos${state.difficulty==='hard'?` · especiais +${r.advancedBonus||0} ${r.advancedPenalty||0}`:''} · ${r.finishPlace?`${r.finishPlace}º a concluir · `:''}+${r.bonus} chegada · ${fmtMs(r.elapsedMs)}`}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
+      <div class="score-table ${advancedScore?'advanced-score':''}"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span>${advancedScore?'<span>Especiais</span>':''}<span>Chegada</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row ${r.timedOut?'timed-out-row':''}"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}${resultTeamNames(r)?`<small class="result-team-names">${esc(resultTeamNames(r))}</small>`:''}</span><span>${r.timedOut?'0 (tempo)':`${r.routeScore}/${r.targetCellCount}`}</span>${advancedScore?`<span class="advanced-score-cell">${r.timedOut?'<b class="adv-minus">ZERADO</b>':`<b class="adv-plus">+${r.advancedBonus||0}</b> <b class="adv-minus">${r.advancedPenalty||0}</b>`}</span>`:''}<span>${r.timedOut?'Prazo esgotado':`${r.finishPlace?`${r.finishPlace}º · `:''}+${r.bonus}`}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
+      <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>${resultTeamLabel(r)}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span>${r.timedOut?`<strong>0 pontos</strong> · prazo final esgotado · ${fmtMs(r.elapsedMs)}`:`<strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos${state.difficulty==='hard'?` · especiais +${r.advancedBonus||0} ${r.advancedPenalty||0}`:''} · ${r.finishPlace?`${r.finishPlace}º a concluir · `:''}+${r.bonus} chegada · ${fmtMs(r.elapsedMs)}`}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
       <div class="result-actions">${me.id===state.hostId?`<button id="restartGame" class="primary-button" ${(restartGamePending||state.restarting)?'disabled':''}>${(restartGamePending||state.restarting)?'Gerando nova pista…':'Reiniciar partida'}</button>`:`<span>${state.restarting?'O anfitrião está gerando uma nova pista…':'Aguardando o anfitrião para reiniciar.'}</span>`}<button id="leaveResult" class="secondary-button">Sair</button></div></section></main>`;
     drawTrack('resultOriginal', state.track);
     for(const r of ranking){
@@ -484,6 +502,9 @@
     else if(state.status==='lobby' || state.status==='starting') lobbyView();
     else if(state.status==='finished') resultView();
     else prepRaceView();
+    if(state?.status==='finished' && timeoutResultFlashUntil>Date.now()) {
+      app.insertAdjacentHTML('beforeend', `<div class="timeout-result-flash" role="alert" aria-live="assertive"><strong>O SEU TEMPO ACABOU</strong><small>A partida foi encerrada automaticamente.</small></div>`);
+    }
     if (state && (state.restarting || restartGamePending) && !document.querySelector('.start-loading-overlay')) {
       app.insertAdjacentHTML('beforeend', startingOverlayMarkup(true));
       bindLoadingExit();
@@ -776,7 +797,7 @@
     const team=myTeam();
     if(state?.status==='racing'&&state.startedAt&&!team?.finishedAt){raceTimer=setInterval(()=>{const el=document.querySelector('#raceClock');if(el)el.textContent=fmtMs(Date.now()-state.startedAt);},31);}
     if(state?.status==='countdown'&&state.countdownEndsAt){const tick=()=>{const n=document.querySelector('#countdownNumber');if(!n)return;const remain=Math.max(0,state.countdownEndsAt-Date.now());if(remain<=0){n.textContent='RALLY!';triggerRallyFlash();return;}const value=Math.max(1,Math.ceil(remain/1000));n.textContent=String(value);if(value>=1&&value<=10&&lastCountdownBeep!==value){lastCountdownBeep=value;playSound('beep',1);}};tick();countdownTimer=setInterval(tick,80);}
-    if(state?.status==='racing'&&state.lastTeamCountdown?.endsAt&&!team?.finishedAt){const tickLast=()=>{const el=document.querySelector('#lastTeamCountdownNumber');if(!el)return;const remain=Math.max(0,Number(state.lastTeamCountdown.endsAt)-Date.now());el.textContent=String(Math.max(0,Math.ceil(remain/1000)));};tickLast();lastTeamCountdownTimer=setInterval(tickLast,80);}
+    if(state?.status==='racing'&&state.lastTeamCountdown?.endsAt&&!team?.finishedAt){const tickLast=()=>{const el=document.querySelector('#lastTeamCountdownNumber');if(!el)return;const remain=Math.max(0,Number(state.lastTeamCountdown.endsAt)-Date.now());if(remain<=0){el.textContent='ACABOU';const box=el.closest('.last-team-countdown');if(box){box.classList.add('expired');const small=box.querySelector('small');if(small)small.innerHTML='O SEU<br>TEMPO';}if(lastTeamCountdownTimer){clearInterval(lastTeamCountdownTimer);lastTeamCountdownTimer=null;}return;}el.textContent=String(Math.max(0,Math.ceil(remain/1000)));};tickLast();lastTeamCountdownTimer=setInterval(tickLast,80);}
   }
   function stopTimers(){if(raceTimer)clearInterval(raceTimer);if(countdownTimer)clearInterval(countdownTimer);if(lastTeamCountdownTimer)clearInterval(lastTeamCountdownTimer);raceTimer=null;countdownTimer=null;lastTeamCountdownTimer=null;}
   function leaveRoom(){emitAck('leaveRoom',{},()=>{state=null;scanAnalysis=null;scanSourceImage=null;manualMarkerPoints=[];clearIdentity();notice='';exitConfirm=false;render();});}
@@ -792,6 +813,11 @@
     const me=next.players.find(p=>p.id===identity.playerId);
     if(me){entryMode=next.mode||entryMode;saveIdentity({roomCode:next.code,name:me.name,mode:entryMode});}
     const ownTeam = me?.color ? next.teams?.[me.color] : null;
+    if(previousStatus==='racing' && next.status==='finished' && ownTeam?.timedOut) {
+      timeoutResultFlashUntil=Date.now()+1200;
+      clearTimeout(timeoutResultFlashTimer);
+      timeoutResultFlashTimer=setTimeout(()=>{timeoutResultFlashUntil=0;if(state?.status==='finished')render();},1250);
+    }
     const ownConfirmed = me?.role==='pilot' ? ownTeam?.pilotConfirmed : me?.role==='copilot' ? ownTeam?.copilotConfirmed : false;
     if (next.status !== 'racing' || ownTeam?.finishedAt || ownConfirmed) finishSending = false;
     render();
@@ -800,10 +826,29 @@
     const me=myPlayer(); if(!me||me.color!==color||me.role!=='copilot'||!op)return;
     localOps.push(op);const c=document.querySelector('#copilotDraw');if(c)applyOp(c.getContext('2d'),c,op);
   });
+  function resumeCurrentSession() {
+    if(!(identity.roomCode&&identity.playerId&&identity.token)) { notice=''; return false; }
+    socket.emit('resumeSession',{code:identity.roomCode,playerId:identity.playerId,token:identity.token},res=>{
+      if(res?.ok){
+        notice='';
+        if(res.state) state=res.state;
+        render();
+        return;
+      }
+      state=null;
+      clearIdentity();
+      notice=res?.error==='Sessão não encontrada.'
+        ? 'A sala não está mais disponível. Crie ou entre em uma nova sala.'
+        : (res?.error||'Não foi possível recuperar a partida.');
+      render();
+    });
+    return true;
+  }
   socket.on('connect', () => {
-    if(identity.roomCode&&identity.playerId&&identity.token){socket.emit('resumeSession',{code:identity.roomCode,playerId:identity.playerId,token:identity.token},res=>{if(!res?.ok){state=null;clearIdentity();render();}});}
+    if(!resumeCurrentSession()){notice='';if(!state)render();}
   });
-  socket.on('disconnect',()=>{notice='Conexão com o servidor interrompida. Tentando reconectar…';if(state)render();});
+  socket.on('connect_error',()=>{notice='Servidor temporariamente indisponível. Tentando reconectar automaticamente…';if(state)render();});
+  socket.on('disconnect',()=>{notice='Conexão com o servidor interrompida. Tentando reconectar automaticamente…';if(state)render();});
 
-  if(socket.connected&&identity.roomCode&&identity.playerId&&identity.token){socket.emit('resumeSession',{code:identity.roomCode,playerId:identity.playerId,token:identity.token},res=>{if(!res?.ok){clearIdentity();render();}});} else render();
+  if(socket.connected){if(!resumeCurrentSession())render();} else render();
 })();

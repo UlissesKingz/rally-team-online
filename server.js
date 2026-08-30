@@ -34,8 +34,14 @@ const io = new Server(server, {
     origin(origin, callback) { callback(socketOriginAllowed(origin) ? null : new Error('Origem não permitida'), socketOriginAllowed(origin)); },
     credentials: true
   },
-  pingInterval: 25000,
-  pingTimeout: 60000,
+  // Dá mais tolerância a troca de Wi‑Fi/4G, suspensão curta do navegador e
+  // pequenas oscilações do Render sem expulsar a pessoa da partida.
+  pingInterval: 30000,
+  pingTimeout: 120000,
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000,
+    skipMiddlewares: true
+  },
   maxHttpBufferSize: 2e6
 });
 
@@ -1290,6 +1296,33 @@ function attachSocket(socket, room, player) {
 function ackError(ack, message) { if (typeof ack === 'function') ack({ ok:false, error:message }); }
 function ackOk(ack, extra={}) { if (typeof ack === 'function') ack({ ok:true, ...extra }); }
 
+function handleSocketEventFailure(socket, eventName, args, err) {
+  console.error(`[Rally Team] Erro no evento ${eventName}:`, err);
+  const ack = [...args].reverse().find(v => typeof v === 'function');
+  if (ack) {
+    try { ack({ ok:false, error:'O servidor encontrou um erro temporário. Tente novamente.' }); } catch {}
+  }
+  // Um erro isolado de ação não deve derrubar o processo nem destruir a sala.
+  try {
+    const { room } = playerBySocket(socket);
+    if (room) emitRoom(room);
+  } catch (emitErr) {
+    console.error('[Rally Team] Falha ao reenviar estado após erro:', emitErr);
+  }
+}
+function onSafe(socket, eventName, handler) {
+  socket.on(eventName, (...args) => {
+    try {
+      const value = handler(...args);
+      if (value && typeof value.then === 'function') {
+        value.catch(err => handleSocketEventFailure(socket, eventName, args, err));
+      }
+    } catch (err) {
+      handleSocketEventFailure(socket, eventName, args, err);
+    }
+  });
+}
+
 function simpleRate(socket, key, limit, windowMs) {
   const now = Date.now();
   socket.data.rates ||= {};
@@ -1583,9 +1616,13 @@ function maybeFinishRoom(room) {
     : colors.every(c=>room.teamStates[c].finishedAt);
   if(!ready)return false;
   assignFinishBonuses(room, colors);
+  const slots = teamSlots(room);
   const rows = colors.map(color => {
     const t=room.teamStates[color];
     const scored=smartphone?scoreSmartphoneTeam(room,t):scoreTeam(room,t);
+    const pilotName = slots[color]?.pilot?.name || null;
+    const copilotName = slots[color]?.copilot?.name || null;
+    const memberNames = [pilotName, copilotName].filter(Boolean);
     t.targetCellCount=scored.targetCellCount;
     if (t.timedOut) {
       t.routeScore=0;
@@ -1603,6 +1640,9 @@ function maybeFinishRoom(room) {
     }
     return {
       color,
+      pilotName,
+      copilotName,
+      memberNames,
       routeScore:t.routeScore,
       targetCellCount:t.targetCellCount,
       playerCellCount:scored.playerCellCount,
@@ -1708,7 +1748,7 @@ function removePlayer(room, player) {
 }
 
 io.on('connection', socket => {
-  socket.on('createRoom', (payload, ack) => {
+  onSafe(socket, 'createRoom', (payload, ack) => {
     if (!simpleRate(socket,'room',8,10000)) return ackError(ack,'Muitas tentativas. Tente novamente em instantes.');
     const name=cleanName(payload?.name), difficulty=DIFFICULTIES.includes(payload?.difficulty)?payload.difficulty:null;
     const mode=ROOM_MODES.includes(payload?.mode)?payload.mode:'online';
@@ -1718,7 +1758,7 @@ io.on('connection', socket => {
     ackOk(ack,{ code:room.code, playerId:player.id, token:player.token, mode:room.mode }); emitRoom(room);
   });
 
-  socket.on('joinRoom', (payload, ack) => {
+  onSafe(socket, 'joinRoom', (payload, ack) => {
     if (!simpleRate(socket,'room',8,10000)) return ackError(ack,'Muitas tentativas. Tente novamente em instantes.');
     const name=cleanName(payload?.name), code=cleanCode(payload?.code);
     if (!name || !code) return ackError(ack,'Nome ou código inválido.');
@@ -1736,14 +1776,16 @@ io.on('connection', socket => {
     ackOk(ack,{code,id,playerId:id,token,mode:room.mode}); emitRoom(room);
   });
 
-  socket.on('resumeSession', (payload, ack) => {
+  onSafe(socket, 'resumeSession', (payload, ack) => {
     const code=cleanCode(payload?.code), id=String(payload?.playerId||''), token=String(payload?.token||'');
     const room=code?rooms.get(code):null, p=room?.players[id];
     if (!room||!p||!token||p.token!==token) return ackError(ack,'Sessão não encontrada.');
-    attachSocket(socket,room,p); ackOk(ack,{code,playerId:p.id,token:p.token}); emitRoom(room);
+    attachSocket(socket,room,p);
+    ackOk(ack,{code,playerId:p.id,token:p.token,state:roomClientShape(room,p)});
+    emitRoom(room);
   });
 
-  socket.on('setTeam', (payload, ack) => {
+  onSafe(socket, 'setTeam', (payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
     if (room.status!=='lobby') return ackError(ack,'A equipe só pode ser alterada no lobby.');
     if (room.mode==='smartphone') return ackError(ack,'No modo Presencial as cores são atribuídas automaticamente.');
@@ -1754,7 +1796,7 @@ io.on('connection', socket => {
     player.color=color; player.role=role; player.ready=false; emitRoom(room); ackOk(ack);
   });
 
-  socket.on('startGame', (_payload, ack) => {
+  onSafe(socket, 'startGame', (_payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
     if (player.id!==room.hostId) return ackError(ack,'Somente o anfitrião pode iniciar.');
     if (room.status!=='lobby') return ackError(ack,'A partida já foi iniciada.');
@@ -1792,14 +1834,14 @@ io.on('connection', socket => {
     });
   });
 
-  socket.on('setReady', (payload, ack) => {
+  onSafe(socket, 'setReady', (payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
     if (room.restarting) return ackError(ack,'Aguarde a nova pista ser gerada.');
     if (room.status!=='prep') return ackError(ack,'Não é possível alterar prontidão agora.');
     player.ready=payload?.ready!==false; emitRoom(room); ackOk(ack); beginCountdown(room);
   });
 
-  socket.on('drawOp', raw => {
+  onSafe(socket, 'drawOp', raw => {
     if (!simpleRate(socket,'draw',220,1000)) return;
     const {room,player}=playerBySocket(socket); if (!room||!player||room.restarting||room.status!=='racing'||player.role!=='pilot'||!player.color) return;
     const team=room.teamStates[player.color]; if (!team||team.pilotId!==player.id||team.finishedAt) return;
@@ -1810,7 +1852,7 @@ io.on('connection', socket => {
     if (mate?.connected&&mate.socketId) io.to(mate.socketId).emit('drawOp',{color:player.color,op});
   });
 
-  socket.on('claimChip', (payload, ack) => {
+  onSafe(socket, 'claimChip', (payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
     if (room.restarting) return ackError(ack,'Aguarde a nova pista ser gerada.');
     if (player.role!=='copilot' || !player.color) return ackError(ack,'Somente o Copiloto pode pegar a ficha.');
@@ -1820,7 +1862,7 @@ io.on('connection', socket => {
     ackOk(ack);
   });
 
-  socket.on('finishTeam', (_payload, ack) => {
+  onSafe(socket, 'finishTeam', (_payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
     if (!player.color || !player.role) return ackError(ack,'Você não está em uma dupla.');
     const team=room.teamStates[player.color]; if (!team) return ackError(ack,'Dupla inválida.');
@@ -1840,7 +1882,7 @@ io.on('connection', socket => {
   });
 
 
-  socket.on('submitSmartphoneScan', (payload, ack) => {
+  onSafe(socket, 'submitSmartphoneScan', (payload, ack) => {
     const {room,player}=playerBySocket(socket); if(!room||!player)return ackError(ack,'Sessão inválida.');
     if(room.mode!=='smartphone')return ackError(ack,'Esta sala não usa fotografia do papel.');
     if(room.status!=='racing')return ackError(ack,'A corrida não está aguardando fotografias.');
@@ -1861,7 +1903,7 @@ io.on('connection', socket => {
     ackOk(ack,{roomFinished,state:roomClientShape(room,player)});
   });
 
-  socket.on('restartGame', (_payload, ack) => {
+  onSafe(socket, 'restartGame', (_payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return ackError(ack,'Sessão inválida.');
     if (player.id!==room.hostId) return ackError(ack,'Somente o anfitrião pode reiniciar.');
     if (!['prep','countdown','racing','finished'].includes(room.status)) return ackError(ack,'Não é possível reiniciar neste momento.');
@@ -1900,12 +1942,12 @@ io.on('connection', socket => {
     });
   });
 
-  socket.on('leaveRoom', (_payload, ack) => {
+  onSafe(socket, 'leaveRoom', (_payload, ack) => {
     const {room,player}=playerBySocket(socket); if (!room||!player) { ackOk(ack); return; }
     socket.leave(room.code); socket.data.session=null; removePlayer(room,player); ackOk(ack);
   });
 
-  socket.on('disconnect', () => {
+  onSafe(socket, 'disconnect', () => {
     const {room,player}=playerBySocket(socket); if (!room||!player) return;
     if (player.socketId!==socket.id) return;
     player.connected=false; player.socketId=null; emitRoom(room); scheduleEmptyRoom(room);
