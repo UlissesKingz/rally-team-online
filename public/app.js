@@ -171,7 +171,7 @@
   function entryView() {
     const smartphone=entryMode==='smartphone';
     app.innerHTML = `<main class="entry-shell cover-screen entry-cover"><header class="entry-top header-lite">${topLinks(false)}</header><div class="cover-spotlight"><img src="/logo.png" alt="Rally Team" class="cover-spotlight-logo"></div><section class="entry-card cover-card">
-      <p class="eyebrow">Comunicação · precisão · velocidade</p><h1>${smartphone?'Piloto no papel. Copiloto no celular.':'Pilote sem ver a pista.'}</h1><p class="lead">${smartphone?'No modo Presencial, somente os Copilotos entram na sala. O Piloto desenha na folha física A5 e a câmera faz a correção pelo acetato virtual.':'Forme uma dupla com Piloto e Copiloto. O navegador vê o percurso; o piloto recebe apenas a folha.'}</p>
+      <p class="eyebrow">Comunicação · precisão · velocidade</p><h1>${smartphone?'Piloto no papel. Copiloto no celular.':'Pilote sem ver a pista.'}</h1><p class="lead">${smartphone?'No modo Presencial, somente os Copilotos entram na sala. O Piloto desenha na folha de desenho e a câmera faz a correção pelo acetato virtual.':'Forme uma dupla com Piloto e Copiloto. O navegador vê o percurso; o piloto recebe apenas a folha.'}</p>
       <div class="mode-switch"><button type="button" data-entry-mode="online" class="${!smartphone?'active':''}">Jogar Online</button><button type="button" data-entry-mode="smartphone" class="${smartphone?'active':''}">Presencial</button></div>
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
       <label>Seu nome<input id="playerName" maxlength="24" value="${esc(identity.name||'')}" placeholder="Nome"></label>
@@ -180,7 +180,7 @@
       <div class="divider"><span>ou entre em uma sala ${smartphone?'Presencial':''}</span></div>
       <div class="join-row"><input id="roomCode" maxlength="4" autocomplete="off" placeholder="CÓDIGO"><button id="joinRoom" class="secondary-button">Entrar</button></div>
       <p class="helper">${smartphone?'A sala aceita de 1 a 4 Copilotos. Cada um joga ao lado de um Piloto com uma folha física.':'A dificuldade de uma sala existente é definida pelo anfitrião.'}</p>
-      ${smartphone?'<a class="sheet-download" href="/rally-team-folha-smartphone-a5.pdf" target="_blank">Baixar folha A5 para impressão</a>':''}
+      ${smartphone?'<a class="sheet-download" href="/rally-team-folha-smartphone-a5.pdf" target="_blank">Baixar folha de desenho para impressão</a>':''}
       <a class="small-link" href="/device.html">Trocar versão</a>
     </section></main>`;
     const persistEntryFields=()=>{
@@ -231,7 +231,7 @@
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
       <div class="smartphone-players">${state.players.map((p,i)=>`<article class="smartphone-player team-${p.color}"><span class="team-dot"></span><div><small>Dupla ${i+1}</small><strong>${esc(p.name)}</strong></div><span class="smartphone-role">Copiloto · Equipe ${COLOR_LABELS[p.color]}</span>${!p.connected?'<em>desconectado</em>':''}</article>`).join('')}</div>
       <div class="lobby-bottom"><div><strong>${state.players.length}</strong>/4 Copiloto${state.players.length===1?'':'s'} na sala</div>${me?.id===state.hostId?`<button id="startGame" class="primary-button" ${(state.canStart&&!startGamePending)?'':'disabled'}>${startGamePending?'Gerando pista…':'Iniciar partida'}</button>`:`<span class="waiting-host">${state.status==='starting'?'O anfitrião já iniciou. Aguarde…':'Aguardando o anfitrião iniciar'}</span>`}</div>
-      <p class="helper center">O anfitrião inicia quando todos os Copilotos desejados tiverem entrado. É possível jogar com 1, 2, 3 ou 4 duplas.</p><a class="sheet-download" href="/rally-team-folha-smartphone-a5.pdf" target="_blank">Abrir folha A5 para impressão</a>
+      <p class="helper center">O anfitrião inicia quando todos os Copilotos desejados tiverem entrado. É possível jogar com 1, 2, 3 ou 4 duplas.</p><a class="sheet-download" href="/rally-team-folha-smartphone-a5.pdf" target="_blank">Abrir folha de desenho para impressão</a>
       </section>${(state.status==='starting'||startGamePending)?startingOverlayMarkup():''}</main>`;
     document.querySelector('#copyCode').onclick=async()=>{try{await navigator.clipboard.writeText(state.code);document.querySelector('#copyCode').textContent='Copiado!';setTimeout(()=>{const b=document.querySelector('#copyCode');if(b)b.textContent='Copiar';},1200);}catch{}};
     const st=document.querySelector('#startGame'); if(st) st.onclick=()=>requestStartGame();
@@ -378,7 +378,7 @@
     app.innerHTML=`<main class="game-shell scan-game">${raceHeader()}<section class="scan-stage"><div class="scan-head"><div><p class="eyebrow">Etapa concluída · ${fmtMs(team?.elapsedMs)}</p><h2>Fotografe a folha do Piloto</h2><p>Posicione a câmera frontalmente para a folha. O sistema precisa reconhecer e circular os 4 cantos da folha na sua foto para validar.</p></div></div>
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
       <div class="scan-grid"><div class="scan-capture"><label class="primary-button camera-button" for="physicalPhoto">Abrir câmera / escolher foto</label><input id="physicalPhoto" type="file" accept="image/*" capture="environment" hidden><p class="helper">Prefira caneta preta ou azul-escura e fotografe a folha inteira, com os quatro marcadores visíveis.</p><canvas id="scanSourceCanvas" class="scan-source" width="480" height="680"></canvas><div class="scan-marker-status" id="scanMarkerStatus">Aguardando fotografia.</div><button id="manualMarkersBtn" class="secondary-button" type="button" disabled>Ajustar marcadores manualmente</button></div>
-      <div class="scan-preview"><h3>Leitura normalizada</h3><div class="scan-paper"><img id="scanPreview" alt="Traço detectado na folha A5"></div><p id="scanSummary" class="helper">Depois da foto, o desenho detectado aparecerá aqui.</p><button id="submitScanBtn" class="primary-button wide" type="button" ${scanAnalysis?'':'disabled'}>Enviar para correção</button></div></div>
+      <div class="scan-preview"><h3>Leitura normalizada</h3><div class="scan-paper"><img id="scanPreview" alt="Traço detectado na folha de desenho"></div><p id="scanSummary" class="helper">Depois da foto, o desenho detectado aparecerá aqui.</p><button id="submitScanBtn" class="primary-button wide" type="button" ${scanAnalysis?'':'disabled'}>Enviar para correção</button></div></div>
       <div class="ready-zone"><small>Seu tempo já está parado. A pontuação aparece quando todas as duplas enviarem suas folhas.</small></div></section></main>`;
     if(scanSourceImage)drawSourceImageToCanvas(scanSourceImage,manualMarkerPoints);
     if(scanAnalysis){

@@ -1,1 +1,239 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Manual — Rally Team</title><link rel="stylesheet" href="/styles.css"></head><body class="manual-page"><header class="manual-head"><a href="/index.html" class="brand-inline"><img src="/logo.png" alt="Rally Team" class="brand-logo small"></a><div><a class="top-action" href="/index.html">Jogar</a><a class="top-action" href="https://drive.google.com/file/d/1NTREN6puV1vzGzoSEqJDpfxvFYwyMZxM/view?usp=sharing" target="_blank" rel="noopener">Imprimir</a><a class="top-action" href="https://discord.gg/EJCHTwQjDz" target="_blank" rel="noopener">Discord</a></div></header><main class="manual-content"><p class="eyebrow">Manual do protótipo</p><h1>Pilote sem ver a pista.</h1><p>Rally Team é um jogo de comunicação espacial em duplas. O Copiloto conhece o percurso e orienta o Piloto, que tenta reproduzi-lo sem ver a pista original.</p><figure class="manual-hero-photo"><img src="/manual-rally-team.jpg" alt="Três duplas jogando Rally Team ao redor de uma mesa" loading="lazy"></figure><h2>Pontuação</h2><p>A correção usa um acetato virtual. No Fácil, a folha é dividida em 96 células (24 por quadrante); no Difícil, em 384 células (96 por quadrante). Cada célula pela qual a pista original passa e que também foi alcançada pelo desenho vale 1 ponto. A ordem das células não importa.</p><p>Ao final, há um bônus pela ordem de conclusão: com 4 duplas, 1ª +10, 2ª +5, 3ª +3 e 4ª +0; com 3 duplas, 1ª +10, 2ª +4 e 3ª +0; com 2 duplas, 1ª +7 e 2ª +0. Em partida com uma única dupla não há bônus de chegada. A classificação final considera percurso + bônus de chegada; empates são decididos pelo menor tempo.</p><p><strong>Contagem da última dupla:</strong> em qualquer partida com duas ou mais duplas, quando apenas uma ainda não tiver concluído, começa uma contagem regressiva de 10 segundos nas telas dessa dupla. No Online, Piloto e Copiloto precisam confirmar <strong>Concluímos</strong> dentro do prazo; no Presencial, o Copiloto precisa concluir. Se o tempo chegar a zero antes da conclusão, aparece a mensagem <strong>“O seu tempo acabou”</strong>, a dupla encerra a etapa automaticamente sem precisar clicar em Concluímos e recebe <strong>0 pontos</strong>, independentemente do desenho, bônus ou revés obtidos. O resultado da partida é exibido em seguida.</p><h2>Especiais da dificuldade Difícil</h2><p>Na dificuldade Difícil, o Copiloto recebe também casas especiais sobre a carta. Três casas de bônus ficam sobre células pelas quais a pista passa e valem +15, +10 e +5 quando o traço do Piloto alcança corretamente aquela célula. Os três pontos são distribuídos aleatoriamente, mantendo pelo menos 6 células de percurso entre eles.</p><p>Cada bônus é ladeado por dois quadrados de revés: exatamente um de cada lado da pista, a uma célula de distância do caminho correto. O valor do revés daquele ponto é sorteado entre -20, -15, -10 e -5. Se o traço entrar em um quadrado vermelho, a penalidade indicada é aplicada; se entrar nos dois lados, ambos contam. Essas informações aparecem somente para o Copiloto.</p><h2>Jogar Online</h2><p>A sala aceita de 1 a 4 duplas completas, cada uma com Piloto e Copiloto na mesma cor. O Piloto desenha na folha A5 virtual; o Copiloto vê a pista e acompanha o traço ao vivo. Piloto e Copiloto confirmam Concluímos; o tempo da dupla para quando ambos confirmam.</p><h2>Modo Presencial</h2><p>Somente os Copilotos entram na sala, de 1 a 4. Cada Copiloto joga ao lado de um Piloto físico com a folha A5 impressa e uma caneta preta ou azul-escura. O anfitrião aguarda os demais Copilotos e inicia a partida quando quiser.</p><p>Todas as duplas recebem a mesma pista, mas largam em pontos diferentes. Com quatro participantes, as largadas ficam na linha vertical superior, linha horizontal direita, linha vertical inferior e linha horizontal esquerda. Todos percorrem o circuito no sentido horário.</p><p>Quando a dupla termina, o Copiloto pressiona <strong>Concluímos</strong>. O tempo para imediatamente e o site abre a etapa de fotografia. Enquadre os quatro marcadores pretos da folha. O sistema corrige a perspectiva para o formato A5, separa o traço da caneta e aplica o mesmo acetato virtual usado no jogo online.</p><p>Se a detecção automática dos quatro marcadores falhar, o site permite indicar manualmente os quatro pontos na ordem: superior esquerdo, superior direito, inferior direito e inferior esquerdo.</p><a class="primary-button inline" href="https://drive.google.com/file/d/1NTREN6puV1vzGzoSEqJDpfxvFYwyMZxM/view?usp=sharing" target="_blank" rel="noopener">Imprimir folha A5</a><a class="secondary-button inline" href="/index.html">Voltar ao jogo</a></main><footer class="legal-footer">Jogo criado por Ulisses Reis e Marcelo Torres © 2026 — Propriedade intelectual protegida. Reprodução, distribuição ou uso não autorizado são proibidos.</footer></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Manual — Rally Team</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="manual-page">
+  <header class="manual-head">
+    <a href="/index.html" class="brand-inline"><img src="/logo.png" alt="Rally Team" class="brand-logo small"></a>
+    <div>
+      <a class="top-action" href="/index.html">Jogar</a>
+      <a class="top-action" href="https://drive.google.com/file/d/1NTREN6puV1vzGzoSEqJDpfxvFYwyMZxM/view?usp=sharing" target="_blank" rel="noopener">Imprimir</a>
+      <a class="top-action" href="https://discord.gg/EJCHTwQjDz" target="_blank" rel="noopener">Discord</a>
+    </div>
+  </header>
+
+  <main class="manual-content manual-v45">
+    <p class="eyebrow">Manual do protótipo</p>
+    <h1>Pilote sem ver a pista.</h1>
+    <p>Rally Team é um jogo de comunicação espacial em duplas. O Copiloto conhece o percurso e orienta o Piloto, que tenta reproduzi-lo sem ver a pista original. Quanto mais fiel ficar o desenho, maior será a pontuação da equipe.</p>
+
+    <figure class="manual-hero-photo">
+      <img src="/manual-rally-team.jpg" alt="Três duplas jogando Rally Team ao redor de uma mesa" loading="lazy">
+    </figure>
+
+    <section class="manual-panel">
+      <div class="panel-title-row">
+        <div>
+          <p class="eyebrow">Visão geral</p>
+          <h2>Como o jogo funciona</h2>
+        </div>
+      </div>
+      <div class="manual-mini-grid three">
+        <article class="mini-card icon-card">
+          <span class="icon-badge">1</span>
+          <h3>Forme uma dupla</h3>
+          <p>Cada equipe tem <strong>1 Piloto</strong> e <strong>1 Copiloto</strong>.</p>
+        </article>
+        <article class="mini-card icon-card">
+          <span class="icon-badge">2</span>
+          <h3>Observe e oriente</h3>
+          <p>O Copiloto vê a pista e guia o parceiro por voz.</p>
+        </article>
+        <article class="mini-card icon-card">
+          <span class="icon-badge">3</span>
+          <h3>Desenhe o percurso</h3>
+          <p>O Piloto tenta reproduzir o traçado na <strong>folha de desenho</strong>.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="manual-panel">
+      <div class="panel-title-row">
+        <div>
+          <p class="eyebrow">Papéis da dupla</p>
+          <h2>Quem faz o quê</h2>
+        </div>
+      </div>
+      <div class="manual-role-grid">
+        <article class="role-card role-driver">
+          <div class="role-head"><span class="role-pill">Piloto</span><span class="role-tag">Desenha</span></div>
+          <ul>
+            <li>Vê apenas a <strong>folha de desenho</strong>.</li>
+            <li>Desenha ouvindo as orientações do parceiro.</li>
+            <li>No modo Online, desenha direto na tela.</li>
+            <li>No modo Presencial, desenha na folha impressa.</li>
+          </ul>
+        </article>
+        <article class="role-card role-copilot">
+          <div class="role-head"><span class="role-pill">Copiloto</span><span class="role-tag">Orienta</span></div>
+          <ul>
+            <li>Vê a pista original e o ponto de largada.</li>
+            <li>Orienta o Piloto durante todo o trajeto.</li>
+            <li>No Difícil, também vê bônus e revés.</li>
+            <li>No Presencial, fotografa a folha no final.</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="manual-panel">
+      <div class="panel-title-row">
+        <div>
+          <p class="eyebrow">Passo a passo</p>
+          <h2>Fluxo de uma partida</h2>
+        </div>
+      </div>
+      <div class="manual-flow-grid">
+        <article class="flow-step"><span>1</span><strong>Crie ou entre em uma sala</strong><p>Escolha o modo de jogo, a dificuldade e o nome do jogador.</p></article>
+        <article class="flow-step"><span>2</span><strong>Monte as duplas</strong><p>No Online, Piloto e Copiloto escolhem a mesma cor. No Presencial, entram somente os Copilotos.</p></article>
+        <article class="flow-step"><span>3</span><strong>Inicie a corrida</strong><p>Depois da contagem regressiva, todas as duplas recebem a mesma pista.</p></article>
+        <article class="flow-step"><span>4</span><strong>Desenhe e oriente</strong><p>O Copiloto descreve o percurso enquanto o Piloto desenha o mais fiel possível.</p></article>
+        <article class="flow-step"><span>5</span><strong>Concluam</strong><p>No Online, Piloto e Copiloto confirmam <strong>Concluímos</strong>. No Presencial, o Copiloto conclui e envia a foto da folha.</p></article>
+        <article class="flow-step"><span>6</span><strong>Confira o resultado</strong><p>O sistema compara o desenho com o traçado correto e mostra a classificação final.</p></article>
+      </div>
+    </section>
+
+    <section class="manual-panel">
+      <div class="panel-title-row">
+        <div>
+          <p class="eyebrow">Os 2 modos de jogo</p>
+          <h2>Online e Presencial</h2>
+        </div>
+      </div>
+      <figure class="manual-info-figure">
+        <img src="/infografico-modos-rally-team.png" alt="Infográfico com os dois modos de jogo do Rally Team" loading="lazy">
+      </figure>
+      <div class="manual-mode-grid">
+        <article class="mode-card">
+          <div class="mode-head"><span class="mode-chip online">Online</span><strong>Cada pessoa em seu dispositivo</strong></div>
+          <ul>
+            <li>Entram de <strong>1 a 4 duplas completas</strong>.</li>
+            <li>O Piloto desenha diretamente na folha de desenho virtual.</li>
+            <li>O Copiloto vê a pista e acompanha o traço em tempo real.</li>
+            <li>A dupla conclui quando <strong>os dois</strong> apertam <strong>Concluímos</strong>.</li>
+          </ul>
+        </article>
+        <article class="mode-card">
+          <div class="mode-head"><span class="mode-chip presencial">Presencial</span><strong>Copiloto no site · Piloto na mesa</strong></div>
+          <ul>
+            <li>Entram de <strong>1 a 4 Copilotos</strong>.</li>
+            <li>Cada Copiloto joga ao lado de um Piloto com <strong>folha de desenho</strong> impressa.</li>
+            <li>Todos recebem a mesma pista, mas com pontos de largada diferentes.</li>
+            <li>No final, o Copiloto fotografa a folha para a correção automática.</li>
+          </ul>
+        </article>
+      </div>
+      <div class="manual-note">
+        <strong>Largada no Presencial:</strong> com 4 participantes, as largadas ficam distribuídas na linha vertical superior, linha horizontal direita, linha vertical inferior e linha horizontal esquerda. Todos percorrem o circuito no sentido horário.
+      </div>
+    </section>
+
+    <section class="manual-panel">
+      <div class="panel-title-row">
+        <div>
+          <p class="eyebrow">Dificuldades</p>
+          <h2>Fácil e Difícil</h2>
+        </div>
+      </div>
+      <div class="manual-mini-grid two">
+        <article class="mini-card difficulty-card">
+          <span class="mini-label">Fácil</span>
+          <h3>Percurso direto</h3>
+          <p>A pista é corrigida em uma grade de <strong>96 células</strong> no total, sendo <strong>24 por quadrante</strong>.</p>
+        </article>
+        <article class="mini-card difficulty-card">
+          <span class="mini-label accent">Difícil</span>
+          <h3>Com especiais para o Copiloto</h3>
+          <p>A pista é corrigida em uma grade de <strong>384 células</strong> no total, sendo <strong>96 por quadrante</strong>. Também entram bônus e revés especiais.</p>
+        </article>
+      </div>
+      <div class="special-strip">
+        <div class="special-pill bonus">+15</div>
+        <div class="special-pill bonus">+10</div>
+        <div class="special-pill bonus">+5</div>
+        <div class="special-pill malus">-20</div>
+        <div class="special-pill malus">-15</div>
+        <div class="special-pill malus">-10</div>
+        <div class="special-pill malus">-5</div>
+      </div>
+      <p class="manual-helper-text">No modo Difícil, apenas o Copiloto vê essas casas especiais. Os bônus ficam sobre a pista; os revés ficam exatamente um de cada lado do caminho, a uma célula de distância.</p>
+    </section>
+
+    <section class="manual-panel">
+      <div class="panel-title-row">
+        <div>
+          <p class="eyebrow">Fotografia e correção</p>
+          <h2>Somente no modo Presencial</h2>
+        </div>
+      </div>
+      <div class="manual-mini-grid three">
+        <article class="mini-card icon-card"><span class="icon-badge">A</span><h3>Fotografe a folha</h3><p>Posicione a câmera frontalmente para a folha inteira.</p></article>
+        <article class="mini-card icon-card"><span class="icon-badge">B</span><h3>Mostre os 4 cantos</h3><p>O sistema precisa reconhecer os quatro marcadores pretos da folha.</p></article>
+        <article class="mini-card icon-card"><span class="icon-badge">C</span><h3>Confirme a leitura</h3><p>O site alinha a imagem, separa o traço e aplica o acetato virtual.</p></article>
+      </div>
+      <p>Se a detecção automática dos marcadores falhar, é possível ajustar manualmente os quatro pontos na ordem: superior esquerdo, superior direito, inferior direito e inferior esquerdo.</p>
+      <div class="manual-actions-row">
+        <a class="primary-button inline" href="https://drive.google.com/file/d/1NTREN6puV1vzGzoSEqJDpfxvFYwyMZxM/view?usp=sharing" target="_blank" rel="noopener">Imprimir folha de desenho</a>
+        <a class="secondary-button inline" href="/index.html">Voltar ao jogo</a>
+      </div>
+    </section>
+
+    <section class="manual-panel final-rules-panel">
+      <div class="panel-title-row">
+        <div>
+          <p class="eyebrow">Final da página</p>
+          <h2>Pontuação e final da partida</h2>
+        </div>
+      </div>
+
+      <div class="manual-score-grid">
+        <article class="score-card">
+          <span class="score-top">Pontuação básica</span>
+          <h3>1 ponto por célula correta</h3>
+          <p>Cada célula pela qual a pista original passa e que também foi alcançada pelo desenho vale <strong>1 ponto</strong>. A ordem das células não importa.</p>
+        </article>
+        <article class="score-card">
+          <span class="score-top">Desempate</span>
+          <h3>Menor tempo vence</h3>
+          <p>Se duas duplas terminarem com a mesma pontuação final, vence a equipe com o <strong>menor tempo total</strong>.</p>
+        </article>
+      </div>
+
+      <h3 class="manual-subtitle">Bônus de chegada</h3>
+      <div class="arrival-grid">
+        <article class="arrival-card"><strong>4 duplas</strong><p>1ª +10 · 2ª +5 · 3ª +3 · 4ª +0</p></article>
+        <article class="arrival-card"><strong>3 duplas</strong><p>1ª +10 · 2ª +4 · 3ª +0</p></article>
+        <article class="arrival-card"><strong>2 duplas</strong><p>1ª +7 · 2ª +0</p></article>
+        <article class="arrival-card"><strong>1 dupla</strong><p>Sem bônus de chegada</p></article>
+      </div>
+
+      <h3 class="manual-subtitle">Especiais do modo Difícil</h3>
+      <div class="manual-mini-grid two">
+        <article class="mini-card special-detail">
+          <span class="mini-label green">Bônus</span>
+          <p>Três casas ficam sobre a pista e valem <strong>+15</strong>, <strong>+10</strong> e <strong>+5</strong> se o desenho passar corretamente por elas.</p>
+        </article>
+        <article class="mini-card special-detail">
+          <span class="mini-label red">Revés</span>
+          <p>Cada bônus é acompanhado por dois revés, um de cada lado da pista, com valores entre <strong>-20</strong>, <strong>-15</strong>, <strong>-10</strong> e <strong>-5</strong>.</p>
+        </article>
+      </div>
+
+      <h3 class="manual-subtitle">Regra da última dupla</h3>
+      <p>Em partidas com <strong>2 ou mais duplas</strong>, quando apenas uma dupla ainda não tiver concluído, começa uma contagem regressiva de <strong>10 segundos</strong>.</p>
+      <ul class="manual-bullet-list">
+        <li><strong>Online:</strong> Piloto e Copiloto precisam confirmar <strong>Concluímos</strong> dentro do prazo.</li>
+        <li><strong>Presencial:</strong> o Copiloto precisa concluir dentro do prazo.</li>
+        <li>Se o tempo chegar a zero, aparece a mensagem <strong>“O seu tempo acabou”</strong>.</li>
+        <li>A dupla é encerrada automaticamente e recebe <strong>0 pontos totais</strong>.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="legal-footer">Jogo criado por Ulisses Reis e Marcelo Torres © 2026 — Propriedade intelectual protegida. Reprodução, distribuição ou uso não autorizado são proibidos.</footer>
+</body>
+</html>
