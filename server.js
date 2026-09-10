@@ -1352,7 +1352,7 @@ function rasterLine(mask, W, H, a, b, radius, value) {
 }
 function acetateGrid(difficulty) {
   // Fácil: 24 células por quadrante = 4x6 em cada quadrante = 8x12 na folha.
-  // Difícil: 96 células por quadrante = 8x12 em cada quadrante = 16x24 na folha.
+  // Padrão: 96 células por quadrante = 8x12 em cada quadrante = 16x24 na folha.
   return difficulty === 'hard' ? { cols:16, rows:24 } : { cols:8, rows:12 };
 }
 function cellsFromMask(mask, W, H, cols, rows) {

@@ -175,7 +175,7 @@
       <div class="mode-switch"><button type="button" data-entry-mode="online" class="${!smartphone?'active':''}">Jogar Online</button><button type="button" data-entry-mode="smartphone" class="${smartphone?'active':''}">Presencial</button></div>
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
       <label>Seu nome<input id="playerName" maxlength="24" value="${esc(identity.name||'')}" placeholder="Nome"></label>
-      <fieldset><legend>Dificuldade da nova sala</legend><div class="difficulty-switch"><label><input type="radio" name="difficulty" value="easy" ${identity.difficulty!=='hard'?'checked':''}><span>Fácil</span></label><label><input type="radio" name="difficulty" value="hard" ${identity.difficulty==='hard'?'checked':''}><span>Difícil</span></label></div></fieldset>
+      <fieldset><legend>Dificuldade da nova sala</legend><div class="difficulty-switch"><label><input type="radio" name="difficulty" value="easy" ${identity.difficulty!=='hard'?'checked':''}><span>Fácil</span></label><label><input type="radio" name="difficulty" value="hard" ${identity.difficulty==='hard'?'checked':''}><span>Padrão</span></label></div></fieldset>
       <button id="createRoom" class="primary-button wide">Criar sala ${smartphone?'Presencial':''}</button>
       <div class="divider"><span>ou entre em uma sala ${smartphone?'Presencial':''}</span></div>
       <div class="join-row"><input id="roomCode" maxlength="4" autocomplete="off" placeholder="CÓDIGO"><button id="joinRoom" class="secondary-button">Entrar</button></div>
@@ -227,7 +227,7 @@
   function smartphoneLobbyView() {
     const me=myPlayer();
     app.innerHTML=`<main class="lobby-shell"><header class="game-topbar">${brand()}<div class="room-pill">Sala <strong>${esc(state.code)}</strong></div>${topLinks(true,'Retornar')}</header>
-      <section class="lobby-card"><div class="lobby-head"><div><p class="eyebrow">Lobby Presencial · ${state.difficulty==='hard'?'Difícil':'Fácil'}</p><h1>Aguardando os Copilotos</h1><p>Cada pessoa conectada representa uma dupla física: Copiloto no celular e Piloto com papel e caneta.</p></div><div class="room-code-big"><small>Código</small><strong>${esc(state.code)}</strong><button id="copyCode">Copiar</button></div></div>
+      <section class="lobby-card"><div class="lobby-head"><div><p class="eyebrow">Lobby Presencial · ${state.difficulty==='hard'?'Padrão':'Fácil'}</p><h1>Aguardando os Copilotos</h1><p>Cada pessoa conectada representa uma dupla física: Copiloto no celular e Piloto com papel e caneta.</p></div><div class="room-code-big"><small>Código</small><strong>${esc(state.code)}</strong><button id="copyCode">Copiar</button></div></div>
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
       <div class="smartphone-players">${state.players.map((p,i)=>`<article class="smartphone-player team-${p.color}"><span class="team-dot"></span><div><small>Dupla ${i+1}</small><strong>${esc(p.name)}</strong></div><span class="smartphone-role">Copiloto · Equipe ${COLOR_LABELS[p.color]}</span>${!p.connected?'<em>desconectado</em>':''}</article>`).join('')}</div>
       <div class="lobby-bottom"><div><strong>${state.players.length}</strong>/4 Copiloto${state.players.length===1?'':'s'} na sala</div>${me?.id===state.hostId?`<button id="startGame" class="primary-button" ${(state.canStart&&!startGamePending)?'':'disabled'}>${startGamePending?'Gerando pista…':'Iniciar partida'}</button>`:`<span class="waiting-host">${state.status==='starting'?'O anfitrião já iniciou. Aguarde…':'Aguardando o anfitrião iniciar'}</span>`}</div>
@@ -243,7 +243,7 @@
     const me=myPlayer();
     const complete = COLORS.filter(c=>state.teams[c].pilot&&state.teams[c].copilot).length;
     app.innerHTML=`<main class="lobby-shell cover-screen lobby-cover"><header class="game-topbar header-lite"><div class="room-pill">Sala <strong>${esc(state.code)}</strong></div>${topLinks(true,'Retornar')}</header><div class="cover-spotlight lobby-spotlight"><img src="/logo.png" alt="Rally Team" class="cover-spotlight-logo"></div>
-      <section class="lobby-card cover-card"><div class="lobby-head"><div><p class="eyebrow">Lobby · ${state.difficulty==='hard'?'Difícil':'Fácil'}</p><h1>Monte as duplas</h1><p>Escolham a mesma cor, com um Piloto e um Copiloto.</p></div><div class="room-code-big"><small>Código</small><strong>${esc(state.code)}</strong><button id="copyCode">Copiar</button></div></div>
+      <section class="lobby-card cover-card"><div class="lobby-head"><div><p class="eyebrow">Lobby · ${state.difficulty==='hard'?'Padrão':'Fácil'}</p><h1>Monte as duplas</h1><p>Escolham a mesma cor, com um Piloto e um Copiloto.</p></div><div class="room-code-big"><small>Código</small><strong>${esc(state.code)}</strong><button id="copyCode">Copiar</button></div></div>
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
       <div class="teams-grid">${COLORS.map(color=>`<article class="team-card team-${color}"><div class="team-title"><span class="team-dot"></span><strong>Equipe ${COLOR_LABELS[color]}</strong>${state.teams[color].pilot&&state.teams[color].copilot?'<span class="complete-badge">Dupla pronta</span>':''}</div><div class="slots">${playerSlot(color,'pilot')}${playerSlot(color,'copilot')}</div></article>`).join('')}</div>
       <div class="lobby-bottom"><div><strong>${complete}</strong> dupla${complete===1?'':'s'} completa${complete===1?'':'s'} · ${state.players.length}/8 jogadores</div>${me?.id===state.hostId?`<button id="startGame" class="primary-button" ${(state.canStart&&!startGamePending)?'':'disabled'}>${startGamePending?'Gerando pista…':'Iniciar partida'}</button>`:`<span class="waiting-host">${state.status==='starting'?'O anfitrião já iniciou. Aguarde…':'Aguardando o anfitrião iniciar'}</span>`}</div>
@@ -259,7 +259,7 @@
   function raceHeader() {
     const me=myPlayer();
     const roleLabel=state.mode==='smartphone'?'Presencial · Copiloto':ROLE_LABELS[me.role];
-    return `<header class="game-topbar">${brand()}<div class="race-meta"><span>Sala <strong>${esc(state.code)}</strong></span><span>${state.difficulty==='hard'?'Difícil':'Fácil'}</span><span class="team-name team-text-${me.color}">Equipe ${COLOR_LABELS[me.color]}</span><span>${roleLabel}</span></div>${topLinks(true,'Sair',true)}</header>`;
+    return `<header class="game-topbar">${brand()}<div class="race-meta"><span>Sala <strong>${esc(state.code)}</strong></span><span>${state.difficulty==='hard'?'Padrão':'Fácil'}</span><span class="team-name team-text-${me.color}">Equipe ${COLOR_LABELS[me.color]}</span><span>${roleLabel}</span></div>${topLinks(true,'Sair',true)}</header>`;
   }
   function paperMarkup(idPrefix, interactive=false) {
     return `<div class="paper-wrap ${interactive?'interactive':''}"><div class="paper-tools-slot"></div><div class="a5-paper"><canvas class="paper-base" id="${idPrefix}Base" width="740" height="1050"></canvas><canvas class="draw-layer" id="${idPrefix}Draw" width="740" height="1050"></canvas>${interactive?'<div id="pointerDot" class="pointer-dot"></div>':''}</div></div>`;
