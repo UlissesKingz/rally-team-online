@@ -895,3 +895,270 @@ body:before{
   .smartphone-track-sheet .last-team-countdown.expired small,
   .paper-sheet-shell .last-team-countdown.expired small{font-size:7px}
 }
+
+/* v47.2 — refinamento da área de jogo Presencial (desktop + mobile) */
+.smartphone-stage{
+  max-width:min(1320px,100%);
+  padding:18px 24px 16px;
+}
+.smartphone-track-wrap{
+  grid-template-areas:"track info" "action info";
+  grid-template-columns:minmax(360px,500px) minmax(300px,420px);
+  column-gap:42px;
+  row-gap:10px;
+  justify-content:space-evenly;
+  align-items:center;
+}
+.smartphone-track-card .track-panel{
+  width:min(52dvh,430px);
+  max-width:100%;
+  padding:11px;
+}
+.smartphone-instructions{
+  width:100%;
+  max-width:420px;
+  align-self:center;
+}
+.smartphone-action-zone{
+  width:min(100%,430px);
+  margin:4px auto 0;
+}
+
+/* O contador fica pequeno e preso ao canto superior direito do papel/mapa. */
+.track-card-countdown-host{position:relative;overflow:hidden}
+.track-card-countdown-host .last-team-countdown,
+.paper-sheet-shell .last-team-countdown{
+  position:absolute;
+  top:4px;
+  right:4px;
+  z-index:12;
+  width:48px;
+  height:48px;
+  flex:0 0 48px;
+  border-width:2px;
+  box-shadow:0 4px 12px rgba(92,0,5,.30),0 0 0 2px rgba(238,46,52,.10);
+  pointer-events:none;
+}
+.track-card-countdown-host .last-team-countdown small,
+.paper-sheet-shell .last-team-countdown small{
+  font-size:5px;
+  line-height:1;
+  letter-spacing:.04em;
+  margin-bottom:1px;
+}
+.track-card-countdown-host .last-team-countdown strong,
+.paper-sheet-shell .last-team-countdown strong{
+  font-size:20px;
+  line-height:.9;
+}
+.track-card-countdown-host .last-team-countdown.expired,
+.paper-sheet-shell .last-team-countdown.expired{
+  width:48px;
+  height:48px;
+  flex-basis:48px;
+  border-radius:50%;
+}
+.track-card-countdown-host .last-team-countdown.expired strong,
+.paper-sheet-shell .last-team-countdown.expired strong{font-size:18px}
+.track-card-countdown-host .last-team-countdown.expired small,
+.paper-sheet-shell .last-team-countdown.expired small{font-size:5px}
+
+@media(max-width:720px){
+  /* A tela Presencial precisa poder rolar: nunca esconder o botão sob a folha. */
+  .smartphone-game{
+    height:auto;
+    min-height:100dvh;
+    overflow-x:hidden;
+    overflow-y:auto;
+    padding:8px 9px 34px;
+  }
+  .smartphone-game .game-topbar{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:7px;
+    width:100%;
+  }
+  .smartphone-game .brand-lockup{display:none}
+  .smartphone-game .top-actions{
+    order:1;
+    width:100%;
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px;
+  }
+  .smartphone-game .top-actions .top-action{
+    min-width:0;
+    min-height:38px;
+    padding:7px 4px;
+    font-size:11px;
+    text-align:center;
+  }
+  .smartphone-game .race-meta{
+    order:2;
+    width:100%;
+    gap:4px;
+    margin:0;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .smartphone-game .race-meta span{
+    padding:4px 7px;
+    font-size:9px;
+    line-height:1.1;
+  }
+  .smartphone-game .race-status{
+    margin:6px auto 7px;
+    min-height:0;
+  }
+  .smartphone-game .timer-card{
+    min-width:148px;
+    padding:5px 10px;
+  }
+  .smartphone-game .timer-card strong{font-size:17px}
+
+  .smartphone-stage{
+    flex:0 0 auto;
+    min-height:0;
+    padding:10px 8px 14px;
+    border-radius:17px;
+  }
+  .smartphone-stage .stage-head{
+    flex-direction:row;
+    align-items:flex-end;
+    justify-content:center;
+    text-align:center;
+    gap:6px;
+    margin-bottom:7px;
+  }
+  .smartphone-stage .stage-head>div{width:auto}
+  .smartphone-stage .stage-head h2{font-size:21px;line-height:1.05}
+  .smartphone-stage .eyebrow{font-size:9px;margin-bottom:4px}
+  .smartphone-stage .live-badge{display:none}
+
+  .smartphone-track-wrap{
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    gap:8px;
+    align-items:center;
+    justify-content:flex-start;
+  }
+  .smartphone-instructions{
+    order:1;
+    width:min(94vw,360px);
+    max-width:100%;
+    padding:9px 12px;
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:2px 10px;
+    align-items:center;
+    border-radius:13px;
+  }
+  .smartphone-instructions>strong{grid-column:1/3;font-size:9px}
+  .smartphone-instructions>span{font-size:12px;line-height:1.15}
+  .smartphone-instructions>b{font-size:23px;line-height:1;text-align:right}
+  .smartphone-instructions p{
+    grid-column:1/3;
+    margin:3px 0 0;
+    font-size:10px;
+    line-height:1.3;
+  }
+  .smartphone-track-card{
+    order:2;
+    width:100%;
+    display:flex;
+    justify-content:center;
+    min-width:0;
+  }
+  .smartphone-track-card .track-panel{
+    width:min(84vw,330px)!important;
+    max-width:330px!important;
+    padding:8px;
+    margin:0 auto;
+  }
+  .smartphone-track-card .track-panel-head small{font-size:8px}
+  .smartphone-track-card .track-panel-head strong{font-size:13px}
+  .smartphone-track-card .track-panel .track-card{margin-top:7px}
+  .smartphone-track-card .start-readout{margin-top:5px;font-size:10px}
+  .smartphone-track-card .advanced-special-legend{margin-top:5px;padding-top:5px;font-size:8px}
+
+  .smartphone-action-zone{
+    order:3;
+    position:relative;
+    z-index:5;
+    width:min(92vw,350px);
+    min-height:0;
+    margin:1px auto 0;
+    padding:0;
+    gap:6px;
+    text-align:center;
+  }
+  .smartphone-primary-action,
+  .smartphone-action-zone .finish-team-button{
+    width:100%;
+    min-height:54px;
+    font-size:17px;
+    border-radius:15px;
+  }
+  .smartphone-action-zone small,
+  .smartphone-action-zone span{font-size:10px;line-height:1.3}
+
+  .track-card-countdown-host .last-team-countdown,
+  .paper-sheet-shell .last-team-countdown{
+    top:3px;
+    right:3px;
+    width:43px;
+    height:43px;
+    flex-basis:43px;
+  }
+  .track-card-countdown-host .last-team-countdown strong,
+  .paper-sheet-shell .last-team-countdown strong{font-size:18px}
+  .track-card-countdown-host .last-team-countdown.expired,
+  .paper-sheet-shell .last-team-countdown.expired{
+    width:43px;
+    height:43px;
+    flex-basis:43px;
+  }
+}
+
+@media(max-width:430px){
+  .smartphone-game .top-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .smartphone-stage .stage-head h2{font-size:20px}
+  .smartphone-track-card .track-panel{width:min(86vw,320px)!important;max-width:320px!important}
+  .smartphone-instructions{width:min(94vw,340px)}
+  .smartphone-action-zone{width:min(92vw,340px)}
+}
+
+@media(min-width:721px) and (min-height:760px){
+  .smartphone-stage .stage-head{margin-bottom:10px}
+  .smartphone-stage .stage-head h2{font-size:27px}
+  .smartphone-track-card .track-panel{width:min(53dvh,440px)}
+  .smartphone-primary-action{min-height:58px;font-size:18px}
+}
+
+/* v47.2b — mantém as ações principais dentro da primeira área útil do celular */
+@media(max-width:720px){
+  .smartphone-game .top-actions{
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    gap:4px;
+  }
+  .smartphone-game .top-actions .top-action{
+    min-height:36px;
+    padding:7px 2px;
+    font-size:9.5px;
+    white-space:nowrap;
+  }
+  .smartphone-game .race-meta span:last-child{display:none}
+  .smartphone-stage .stage-head{display:none}
+  .smartphone-instructions p{display:none}
+  .smartphone-instructions{padding:8px 11px}
+  .smartphone-track-card .track-panel{
+    width:min(80vw,315px)!important;
+    max-width:315px!important;
+  }
+  .smartphone-action-zone{margin-top:0}
+}
+@media(max-width:430px){
+  .smartphone-game .top-actions{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .smartphone-track-card .track-panel{width:min(82vw,305px)!important;max-width:305px!important}
+}

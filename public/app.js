@@ -55,6 +55,8 @@
     sessionStorage.removeItem('rallyTeamIntroSeen');
   }
   let lastCountdownBeep = null;
+  let lastTeamCountdownBeep = null;
+  let lastTeamCountdownEndsAt = 0;
   let startSoundPlayed = false;
   let rallyFlashUntil = 0;
   let rallyFlashTimer = null;
@@ -293,9 +295,9 @@
     const showFinalCountdown=state?.status==='racing'&&state?.lastTeamCountdown?.endsAt&&!myTeam()?.finishedAt;
     return `<div class="paper-wrap ${interactive?'interactive':''}"><div class="paper-tools-slot"></div><div class="paper-sheet-shell"><div class="a5-paper"><canvas class="paper-base" id="${idPrefix}Base" width="740" height="1050"></canvas><canvas class="draw-layer" id="${idPrefix}Draw" width="740" height="1050"></canvas>${interactive?'<div id="pointerDot" class="pointer-dot"></div>':''}</div>${showFinalCountdown?lastTeamCountdownMarkup():''}</div></div>`;
   }
-  function trackCardMarkup() {
+  function trackCardMarkup(showFinalCountdown=false) {
     const advanced=!!state.track?.advancedSpecials?.gates?.length;
-    return `<aside class="track-panel"><div class="track-panel-head"><div><small>Carta do Copiloto</small><strong>Pista da etapa</strong></div><span class="clockwise">↻ Horário</span></div><div class="track-card"><canvas id="trackCanvas" width="740" height="1050"></canvas></div><div class="start-readout">Início <strong>${esc(state.track?.startLabel||'')}</strong></div>${advanced?'<div class="advanced-special-legend"><span><i class="adv-swatch bonus"></i>Bônus na pista</span><span><i class="adv-swatch penalty"></i>Revés: 1 de cada lado</span></div>':''}</aside>`;
+    return `<aside class="track-panel"><div class="track-panel-head"><div><small>Carta do Copiloto</small><strong>Pista da etapa</strong></div><span class="clockwise">↻ Horário</span></div><div class="track-card ${showFinalCountdown?'track-card-countdown-host':''}"><canvas id="trackCanvas" width="740" height="1050"></canvas>${showFinalCountdown?lastTeamCountdownMarkup():''}</div><div class="start-readout">Início <strong>${esc(state.track?.startLabel||'')}</strong></div>${advanced?'<div class="advanced-special-legend"><span><i class="adv-swatch bonus"></i>Bônus na pista</span><span><i class="adv-swatch penalty"></i>Revés: 1 de cada lado</span></div>':''}</aside>`;
   }
   function smartphoneRaceView() {
     const me=myPlayer(), team=myTeam();
@@ -321,9 +323,9 @@
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
       <section class="smartphone-stage"><div class="stage-head"><div><p class="eyebrow">Modo Presencial · Copiloto</p><h2>${racing?'Oriente o Piloto':'Prepare a etapa'}</h2></div><div class="live-badge">Piloto na folha de desenho</div></div>
         <div class="smartphone-track-wrap">
-          <div class="smartphone-track-card"><div class="smartphone-track-sheet">${trackCardMarkup()}${racing&&!finished?lastTeamCountdownMarkup():''}</div></div>
+          <div class="smartphone-instructions"><strong>Seu ponto de largada</strong><span>${esc(sideNames[start?.side]||'ponto indicado')}</span><b>${esc(start?.label||state.track?.startLabel||'')}</b><p>Comece nesse ponto da folha de desenho e siga a pista no sentido horário.</p></div>
+          <div class="smartphone-track-card"><div class="smartphone-track-sheet">${trackCardMarkup(racing&&!finished)}</div></div>
           <section class="ready-zone smartphone-action-zone">${actionMarkup}</section>
-          <div class="smartphone-instructions"><strong>Seu ponto de largada</strong><span>${esc(sideNames[start?.side]||'ponto indicado')}</span><b>${esc(start?.label||state.track?.startLabel||'')}</b><p>O Piloto inicia exatamente nesse ponto da cruz central da folha de desenho e percorre a pista no sentido horário.</p></div>
         </div>
       </section>
       ${(countdown || (racing && rallyFlashUntil>Date.now()))?`<div id="countdownOverlay" class="countdown-overlay"><div><small>${countdown?'LARGADA EM':' '}</small><strong id="countdownNumber">${countdown?'10':'RALLY!'}</strong></div></div>`:''}
@@ -910,7 +912,7 @@
     const team=myTeam();
     if(state?.status==='racing'&&state.startedAt&&!team?.finishedAt){raceTimer=setInterval(()=>{const el=document.querySelector('#raceClock');if(el)el.textContent=fmtMs(Date.now()-state.startedAt);},31);}
     if(state?.status==='countdown'&&state.countdownEndsAt){const tick=()=>{const n=document.querySelector('#countdownNumber');if(!n)return;const remain=Math.max(0,state.countdownEndsAt-Date.now());if(remain<=0){n.textContent='RALLY!';triggerRallyFlash();return;}const value=Math.max(1,Math.ceil(remain/1000));n.textContent=String(value);if(value>=1&&value<=10&&lastCountdownBeep!==value){lastCountdownBeep=value;playSound('beep',1);}};tick();countdownTimer=setInterval(tick,80);}
-    if(state?.status==='racing'&&state.lastTeamCountdown?.endsAt&&!team?.finishedAt){const tickLast=()=>{const el=document.querySelector('#lastTeamCountdownNumber');if(!el)return;const remain=Math.max(0,Number(state.lastTeamCountdown.endsAt)-Date.now());if(remain<=0){el.textContent='ACABOU';const box=el.closest('.last-team-countdown');if(box){box.classList.add('expired');const small=box.querySelector('small');if(small)small.innerHTML='O SEU<br>TEMPO';}if(lastTeamCountdownTimer){clearInterval(lastTeamCountdownTimer);lastTeamCountdownTimer=null;}return;}el.textContent=String(Math.max(0,Math.ceil(remain/1000)));};tickLast();lastTeamCountdownTimer=setInterval(tickLast,80);}
+    if(state?.status==='racing'&&state.lastTeamCountdown?.endsAt&&!team?.finishedAt){const countdownEndsAt=Number(state.lastTeamCountdown.endsAt);if(lastTeamCountdownEndsAt!==countdownEndsAt){lastTeamCountdownEndsAt=countdownEndsAt;lastTeamCountdownBeep=null;}const tickLast=()=>{const el=document.querySelector('#lastTeamCountdownNumber');if(!el)return;const remain=Math.max(0,countdownEndsAt-Date.now());if(remain<=0){el.textContent='0';const box=el.closest('.last-team-countdown');if(box){box.classList.add('expired');const small=box.querySelector('small');if(small)small.innerHTML='TEMPO';}lastTeamCountdownBeep=null;lastTeamCountdownEndsAt=0;if(lastTeamCountdownTimer){clearInterval(lastTeamCountdownTimer);lastTeamCountdownTimer=null;}return;}const value=Math.max(1,Math.ceil(remain/1000));el.textContent=String(value);if(value>=1&&value<=15&&lastTeamCountdownBeep!==value){lastTeamCountdownBeep=value;playSound('beep',1);}};tickLast();lastTeamCountdownTimer=setInterval(tickLast,80);}else{lastTeamCountdownBeep=null;lastTeamCountdownEndsAt=0;}
   }
   function stopTimers(){if(raceTimer)clearInterval(raceTimer);if(countdownTimer)clearInterval(countdownTimer);if(lastTeamCountdownTimer)clearInterval(lastTeamCountdownTimer);raceTimer=null;countdownTimer=null;lastTeamCountdownTimer=null;}
   function leaveRoom(){emitAck('leaveRoom',{},()=>{state=null;scanAnalysis=null;scanSourceImage=null;manualMarkerPoints=[];scanRotationQuarterTurns=0;rescanConfirm=false;clearIdentity();notice='';exitConfirm=false;render();});}
