@@ -987,13 +987,13 @@ function axisIntersection(a, b, axis, value) {
 function smartphonePrintedPoints(side) {
   const points = [];
   if (side === 'top') {
-    // Folha A5 v5: N01 começa 17 mm abaixo do topo; passos de 8 mm.
+    // Folha de desenho v5: N01 começa 17 mm abaixo do topo; passos de 8 mm.
     for (let i = 0; i < 12; i += 1) points.push({ label:`N${String(i+1).padStart(2,'0')}`, x:0.5, y:(17 + 8*i) / 210 });
   } else if (side === 'bottom') {
     // S01 começa 111 mm abaixo do topo; passos de 8 mm.
     for (let i = 0; i < 11; i += 1) points.push({ label:`S${String(i+1).padStart(2,'0')}`, x:0.5, y:(111 + 8*i) / 210 });
   } else if (side === 'left') {
-    // W01..W08 seguem exatamente as posições impressas na folha A5 v5.
+    // W01..W08 seguem exatamente as posições impressas na folha de desenho v5.
     const step = 57 / 7;
     for (let i = 0; i < 8; i += 1) points.push({ label:`W${String(i+1).padStart(2,'0')}`, x:(17 + step*i) / 148, y:0.5 });
   } else if (side === 'right') {
@@ -1194,7 +1194,7 @@ function initializeTeamStates(room) {
       ops: [], bonus: 0, finishPlace: null, finishOrder: null, finishedAt: null, elapsedMs: null, timedOut:false,
       pilotConfirmed: false, copilotConfirmed: false,
       routeScore: null, targetCellCount: null, advancedBonus: 0, advancedPenalty: 0, advancedNet: 0, total: null,
-      scanSubmitted:false, scanCells:null, scanImage:null,
+      scanSubmitted:false, scanCells:null, scanImage:null, rescanPending:false,
       smartphoneStart: smartphone ? room.smartphoneStarts[color] : null
     };
   }
@@ -1248,6 +1248,7 @@ function roomClientShape(room, viewer) {
       elapsedMs: room.teamStates[c]?.elapsedMs || null,
       timedOut: !!room.teamStates[c]?.timedOut,
       scanSubmitted: !!room.teamStates[c]?.scanSubmitted,
+      rescanPending: !!room.teamStates[c]?.rescanPending,
       smartphoneStart: room.teamStates[c]?.smartphoneStart || room.smartphoneStarts[c] || null
     }])),
     lastTeamCountdown: (room.status==='racing' && room.lastTeamDeadline && room.lastTeamColor===ownColor) ? { endsAt:room.lastTeamDeadline, color:room.lastTeamColor } : null,
@@ -1504,7 +1505,7 @@ function scoreAdvancedSpecials(room, occupied) {
   return { advancedBonus, advancedPenalty, advancedNet:advancedBonus + advancedPenalty };
 }
 function scoreTeam(room, team) {
-  // Folha A5 virtual. O tamanho físico da tela não interfere na aferição.
+  // Folha de desenho virtual. O tamanho físico da tela não interfere na aferição.
   const W=592,H=840;
   const playerMask = new Uint8Array(W*H);
   for (const op of team.ops) {
@@ -1577,7 +1578,7 @@ function maybeStartLastTeamCountdown(room) {
   const color = unfinished[0];
   if (room.lastTeamColor === color && room.lastTeamDeadline && room.lastTeamDeadline > Date.now()) return false;
   clearLastTeamCountdown(room);
-  const deadline = Date.now() + 10000;
+  const deadline = Date.now() + 15000;
   room.lastTeamColor = color;
   room.lastTeamDeadline = deadline;
   const timer = setTimeout(() => {
@@ -1592,11 +1593,14 @@ function maybeStartLastTeamCountdown(room) {
     team.finishedAt = deadline;
     team.finishOrder = ++current.finishCounter;
     team.elapsedMs = Math.max(0, deadline - current.startedAt);
-    // No Smartphone não há motivo para pedir fotografia: a dupla já zerou a etapa.
+    // No modo Presencial, o tempo encerra aos 15 s, mas a folha ainda precisa
+    // ser fotografada para calcular o que a dupla conseguiu desenhar.
+    // A penalidade de prazo (50%) é aplicada somente depois da correção normal.
     if (current.mode === 'smartphone') {
-      team.scanSubmitted = true;
+      team.scanSubmitted = false;
       team.scanCells = [];
       team.scanImage = null;
+      team.rescanPending = false;
     }
     current.lastTeamDeadline = null;
     current.lastTeamColor = null;
@@ -1624,20 +1628,17 @@ function maybeFinishRoom(room) {
     const copilotName = slots[color]?.copilot?.name || null;
     const memberNames = [pilotName, copilotName].filter(Boolean);
     t.targetCellCount=scored.targetCellCount;
-    if (t.timedOut) {
-      t.routeScore=0;
-      t.bonus=0;
-      t.advancedBonus=0;
-      t.advancedPenalty=0;
-      t.advancedNet=0;
-      t.total=0;
-    } else {
-      t.routeScore=scored.score;
-      t.advancedBonus=scored.advancedBonus||0;
-      t.advancedPenalty=scored.advancedPenalty||0;
-      t.advancedNet=scored.advancedNet||0;
-      t.total=t.routeScore+t.bonus+t.advancedNet;
-    }
+    t.routeScore=scored.score;
+    t.advancedBonus=scored.advancedBonus||0;
+    t.advancedPenalty=scored.advancedPenalty||0;
+    t.advancedNet=scored.advancedNet||0;
+    const normalTotal=t.routeScore+t.bonus+t.advancedNet;
+    t.timeoutBaseTotal=normalTotal;
+    t.timeoutMultiplier=t.timedOut?0.5:1;
+    // Se a última dupla estourar os 15 segundos, ela mantém tudo o que
+    // conseguiu pontuar normalmente até aquele momento, mas seu resultado
+    // final passa a valer metade. Mantemos .5 quando o total for ímpar.
+    t.total=t.timedOut?normalTotal/2:normalTotal;
     return {
       color,
       pilotName,
@@ -1649,6 +1650,8 @@ function maybeFinishRoom(room) {
       bonus:t.bonus,
       finishPlace:t.finishPlace,
       timedOut:!!t.timedOut,
+      timeoutBaseTotal:t.timeoutBaseTotal,
+      timeoutMultiplier:t.timeoutMultiplier,
       advancedBonus:t.advancedBonus,
       advancedPenalty:t.advancedPenalty,
       advancedNet:t.advancedNet,
@@ -1665,7 +1668,7 @@ function maybeFinishRoom(room) {
   room.results={
     ranking:rows,
     finishedAt:Date.now(),
-    scoring:'acetate-cells-plus-finish-bonus-plus-advanced-specials-with-last-team-timeout',
+    scoring:'acetate-cells-plus-finish-bonus-plus-advanced-specials-with-last-team-timeout-half-score',
     grid:acetateGrid(room.difficulty),
     mode:room.mode||'online'
   };
@@ -1680,7 +1683,7 @@ function confirmTeamFinish(room, team, player) {
   if (room.status !== 'racing') return { ok:false, error:'A corrida ainda não está em andamento.' };
   if (team.finishedAt) return { ok:false, error:'Sua dupla já concluiu a pista.' };
   if (room.lastTeamColor===team.color && room.lastTeamDeadline && Date.now()>=room.lastTeamDeadline) {
-    return { ok:false, error:'O prazo final de 10 segundos terminou.' };
+    return { ok:false, error:'O prazo final de 15 segundos terminou.' };
   }
 
   if (room.mode === 'smartphone') {
@@ -1882,14 +1885,38 @@ io.on('connection', socket => {
   });
 
 
-  onSafe(socket, 'submitSmartphoneScan', (payload, ack) => {
+  onSafe(socket, 'requestSmartphoneRescan', (_payload, ack) => {
     const {room,player}=playerBySocket(socket); if(!room||!player)return ackError(ack,'Sessão inválida.');
-    if(room.mode!=='smartphone')return ackError(ack,'Esta sala não usa fotografia do papel.');
-    if(room.status!=='racing')return ackError(ack,'A corrida não está aguardando fotografias.');
+    if(room.mode!=='smartphone')return ackError(ack,'Esta sala não usa correção por fotografia.');
+    if(room.status!=='finished')return ackError(ack,'A nova correção só pode ser feita depois do resultado da partida.');
     const team=room.teamStates[player.color];
     if(!team||team.copilotId!==player.id)return ackError(ack,'Dupla inválida.');
-    if(!team.finishedAt)return ackError(ack,'Clique em Concluímos antes de fotografar a folha.');
-    if(team.scanSubmitted)return ackError(ack,'A fotografia desta dupla já foi enviada.');
+    if(!team.scanSubmitted||!team.scanImage)return ackError(ack,'Ainda não existe uma fotografia anterior para substituir.');
+    team.rescanPending=true;
+    emitRoom(room);
+    ackOk(ack,{state:roomClientShape(room,player)});
+  });
+
+  onSafe(socket, 'cancelSmartphoneRescan', (_payload, ack) => {
+    const {room,player}=playerBySocket(socket); if(!room||!player)return ackError(ack,'Sessão inválida.');
+    if(room.mode!=='smartphone')return ackError(ack,'Esta sala não usa correção por fotografia.');
+    const team=room.teamStates[player.color];
+    if(!team||team.copilotId!==player.id)return ackError(ack,'Dupla inválida.');
+    if(!team.rescanPending)return ackError(ack,'Não há uma nova correção em andamento.');
+    team.rescanPending=false;
+    emitRoom(room);
+    ackOk(ack,{state:roomClientShape(room,player)});
+  });
+
+  onSafe(socket, 'submitSmartphoneScan', (payload, ack) => {
+    const {room,player}=playerBySocket(socket); if(!room||!player)return ackError(ack,'Sessão inválida.');
+    if(room.mode!=='smartphone')return ackError(ack,'Esta sala não usa fotografia da folha de desenho.');
+    const team=room.teamStates[player.color];
+    if(!team||team.copilotId!==player.id)return ackError(ack,'Dupla inválida.');
+    const isRescan=room.status==='finished'&&team.rescanPending===true;
+    if(room.status!=='racing'&&!isRescan)return ackError(ack,'A partida não está aguardando uma fotografia.');
+    if(!team.finishedAt)return ackError(ack,'Clique em Concluímos antes de fotografar a folha de desenho.');
+    if(team.scanSubmitted&&!isRescan)return ackError(ack,'A fotografia desta dupla já foi enviada.');
     const {cols,rows}=acetateGrid(room.difficulty), max=cols*rows;
     const cells=Array.isArray(payload?.cells)?payload.cells:[];
     const unique=[...new Set(cells.map(Number).filter(n=>Number.isInteger(n)&&n>=0&&n<max))];
@@ -1898,6 +1925,7 @@ io.on('connection', socket => {
     team.scanCells=unique;
     team.scanImage=image;
     team.scanSubmitted=true;
+    team.rescanPending=false;
     const roomFinished=maybeFinishRoom(room);
     emitRoom(room);
     ackOk(ack,{roomFinished,state:roomClientShape(room,player)});

@@ -18,8 +18,8 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.15;ba
 @media(max-width:900px){.copilot-layout{grid-template-columns:1fr}.track-panel{width:min(74vw,350px);margin:0 auto}.teams-grid{grid-template-columns:1fr}.game-topbar{align-items:flex-start;flex-wrap:wrap}.race-meta{order:3;width:100%}.a5-paper{width:min(58vh,82vw)}.score-row{grid-template-columns:36px 1.2fr repeat(4,.8fr);font-size:11px}.score-row span:last-child{font-size:10px}}
 @media(max-width:620px){.entry-shell,.lobby-shell,.result-shell,.game-shell{padding:12px}.entry-card,.lobby-card,.result-card,.manual-content{border-radius:17px;padding:18px}.entry-top{align-items:flex-start}.top-actions{justify-content:flex-end}.brand-lockup>div{display:none}.brand-mark{width:40px;height:40px}.lobby-head{display:block}.room-code-big{margin-top:14px}.slots{grid-template-columns:1fr}.lobby-bottom{align-items:stretch;flex-direction:column}.lobby-bottom .primary-button{width:100%}.race-status{flex-direction:column;gap:9px}.bonus-chip{width:48px;height:48px}.timer-card{min-width:150px}.stage-head{align-items:flex-start;flex-direction:column}.draw-tools{width:100%}.tool-btn{flex:1}.a5-paper{width:min(58vh,91vw)}.copilot-layout .a5-paper{width:min(52vh,91vw)}.track-panel{width:min(82vw,330px)}.ready-zone{flex-direction:column;text-align:center}.score-table{overflow-x:auto}.score-row{min-width:610px}.result-actions{flex-direction:column}.device-actions{grid-template-columns:1fr}.manual-page{padding:12px}.manual-head{align-items:flex-start}.manual-content h1{font-size:36px}}
 
-/* Rally Team v8 — folha A5 dimensionada pela ALTURA da viewport.
-   A regra anterior usava largura em vh; por ser A5 vertical, isso fazia a
+/* Rally Team v8 — folha de desenho dimensionada pela ALTURA da viewport.
+   A regra anterior usava largura em vh; por ser a folha vertical, isso fazia a
    altura chegar a ~68vh. Agora a folha inteira cabe na área útil da corrida. */
 .a5-paper{
   width:min(32dvh,380px,74vw);
@@ -254,7 +254,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.15;ba
 }
 
 /* Rally Team v12 — carta do Copiloto um pouco maior, sem disputar espaço com
-   a folha principal nem alterar a proporção A5. */
+   a folha principal nem alterar a proporção vertical. */
 .game-shell .copilot-layout{
   grid-template-columns:minmax(0,1fr) minmax(150px,195px);
 }
@@ -488,7 +488,7 @@ body:before{
   .game-shell .timer-card{padding:5px 11px}
 }
 
-/* v33 — especiais do modo avançado, visíveis apenas ao Copiloto */
+/* v33 — especiais do modo Padrão, visíveis apenas ao Copiloto */
 .advanced-special-legend{display:grid;gap:4px;margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.12);font-size:9px;color:var(--muted);line-height:1.2}
 .advanced-special-legend span{display:flex;align-items:center;gap:5px}
 .adv-swatch{width:10px;height:10px;border-radius:2px;display:inline-block;flex:0 0 auto}
@@ -808,4 +808,90 @@ body:before{
   .manual-v45 .manual-mini-grid.three,.manual-v45 .manual-mini-grid.two,.manual-v45 .manual-role-grid,.manual-v45 .manual-mode-grid,.manual-v45 .manual-score-grid,.manual-v45 .manual-flow-grid,.manual-v45 .arrival-grid{grid-template-columns:1fr}
   .manual-v45 .flow-step{min-height:auto}
   .manual-v45 .manual-actions-row .inline{width:100%;text-align:center}
+}
+
+
+/* v47 — usabilidade mobile, contagem final sobre a folha e nova correção */
+.paper-sheet-shell,.smartphone-track-sheet{position:relative;display:inline-block;max-width:100%}
+.paper-sheet-shell .last-team-countdown,
+.smartphone-track-sheet .last-team-countdown{
+  position:absolute;
+  top:10px;
+  right:10px;
+  z-index:12;
+  pointer-events:none;
+}
+.smartphone-track-wrap{
+  grid-template-areas:"track info" "action info";
+  grid-template-columns:minmax(260px,390px) minmax(210px,310px);
+  align-items:center;
+}
+.smartphone-track-card{grid-area:track;display:flex;justify-content:center;min-width:0}
+.smartphone-action-zone{grid-area:action;display:flex;flex-direction:column;gap:8px;margin:8px auto 0;width:min(100%,390px);min-height:0}
+.smartphone-instructions{grid-area:info}
+.smartphone-primary-action{min-height:54px;font-size:17px;font-weight:900}
+.result-team-actions{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.rescan-result-button{font-weight:900}
+.scan-rotate-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.scan-rotate-actions .secondary-button{min-height:44px}
+
+@media(max-width:720px){
+  .smartphone-game{padding-left:10px;padding-right:10px;overflow-x:hidden}
+  .smartphone-game .game-topbar{gap:10px}
+  .smartphone-game .top-actions{width:100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+  .smartphone-game .top-actions .top-action{min-width:0;padding:9px 6px;font-size:11px;text-align:center}
+  .smartphone-game .race-status{justify-content:center;margin:8px auto 10px}
+  .smartphone-game .timer-card{min-width:178px}
+  .smartphone-stage{padding:14px 10px 16px;border-radius:18px}
+  .smartphone-stage .stage-head{align-items:center;text-align:center;gap:6px;margin-bottom:10px}
+  .smartphone-stage .stage-head>div{width:100%}
+  .smartphone-stage .stage-head h2{font-size:25px}
+  .smartphone-stage .live-badge{align-self:center}
+  .smartphone-track-wrap{display:flex;flex-direction:column;gap:10px;align-items:center;width:100%}
+  .smartphone-instructions{order:1;width:min(100%,390px);padding:12px 14px;display:grid;grid-template-columns:1fr auto;gap:3px 12px;align-items:center}
+  .smartphone-instructions>strong{grid-column:1/3;font-size:10px}
+  .smartphone-instructions>span{font-size:13px}
+  .smartphone-instructions>b{font-size:26px;text-align:right}
+  .smartphone-instructions p{grid-column:1/3;font-size:11px;line-height:1.45;margin-top:4px}
+  .smartphone-track-card{order:2;width:100%;display:flex;justify-content:center}
+  .smartphone-track-card .track-panel{width:min(78vw,340px)!important;max-width:340px!important}
+  .smartphone-track-card .track-panel .track-card{margin-top:8px}
+  .smartphone-action-zone{order:3;width:min(88vw,360px);margin:0 auto;gap:7px;text-align:center}
+  .smartphone-primary-action,.smartphone-action-zone .finish-team-button{width:100%;min-height:58px;font-size:18px;border-radius:16px}
+  .smartphone-action-zone small,.smartphone-action-zone span{font-size:11px;line-height:1.35}
+  .smartphone-track-sheet .last-team-countdown{top:8px;right:8px;width:64px;height:64px;flex-basis:64px;border-width:2px;box-shadow:0 6px 18px rgba(92,0,5,.32),0 0 0 3px rgba(238,46,52,.1)}
+  .smartphone-track-sheet .last-team-countdown strong{font-size:25px}
+  .smartphone-track-sheet .last-team-countdown small{font-size:6px}
+  .paper-sheet-shell .last-team-countdown{top:8px;right:8px;width:64px;height:64px;flex-basis:64px}
+  .paper-sheet-shell .last-team-countdown strong{font-size:25px}
+  .scan-grid{grid-template-columns:1fr}
+  .scan-stage{padding:14px 10px}
+  .scan-capture,.scan-preview{padding:12px}
+  .scan-paper{width:min(72vw,280px)}
+  .scan-rotate-actions{width:min(100%,340px);margin:10px auto 0}
+  .result-team-actions{gap:7px}
+  .result-team-actions>button{min-height:44px}
+}
+
+@media(max-width:430px){
+  .smartphone-game .top-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .smartphone-stage .stage-head h2{font-size:23px}
+  .smartphone-track-card .track-panel{width:min(82vw,330px)!important}
+  .smartphone-instructions{width:min(94vw,360px)}
+  .smartphone-action-zone{width:min(92vw,350px)}
+}
+
+/* v47 — estado de zero no contador sobre a folha */
+@media(max-width:720px){
+  .smartphone-track-sheet .last-team-countdown.expired,
+  .paper-sheet-shell .last-team-countdown.expired{
+    width:138px;
+    height:64px;
+    flex-basis:138px;
+    border-radius:16px;
+  }
+  .smartphone-track-sheet .last-team-countdown.expired strong,
+  .paper-sheet-shell .last-team-countdown.expired strong{font-size:15px}
+  .smartphone-track-sheet .last-team-countdown.expired small,
+  .paper-sheet-shell .last-team-countdown.expired small{font-size:7px}
 }

@@ -41,6 +41,8 @@
   let manualMarkerMode = false;
   let manualMarkerPoints = [];
   let scanWorkSize = null;
+  let scanRotationQuarterTurns = 0;
+  let rescanConfirm = false;
   let startGamePending = false;
   let restartGamePending = false;
   const navEntry = performance.getEntriesByType?.('navigation')?.[0];
@@ -57,11 +59,37 @@
   let rallyFlashUntil = 0;
   let rallyFlashTimer = null;
 
+  const soundPools = Object.fromEntries(Object.entries(SOUND_URLS).map(([name,src]) => [name, Array.from({length:3}, () => {
+    const audio=new Audio(src);
+    audio.preload='auto';
+    audio.load();
+    return audio;
+  })]));
+  const soundPoolIndex = Object.fromEntries(Object.keys(SOUND_URLS).map(name=>[name,0]));
+  function primeSounds() {
+    // O primeiro gesto do usuário libera áudio em navegadores móveis e deixa os arquivos decodificados.
+    for(const pool of Object.values(soundPools)){
+      const audio=pool[pool.length-1];
+      try{
+        audio.muted=true;
+        const p=audio.play();
+        if(p?.then)p.then(()=>{audio.pause();audio.currentTime=0;audio.muted=false;}).catch(()=>{audio.muted=false;});
+        else {audio.pause();audio.currentTime=0;audio.muted=false;}
+      }catch{audio.muted=false;}
+    }
+  }
+  document.addEventListener('pointerdown',primeSounds,{once:true,capture:true});
+  document.addEventListener('keydown',primeSounds,{once:true,capture:true});
   function playSound(name, volume=1) {
-    const src=SOUND_URLS[name];
-    if(!src)return;
+    const pool=soundPools[name];
+    if(!pool?.length)return;
     try{
-      const audio=new Audio(src);
+      const i=soundPoolIndex[name]||0;
+      const audio=pool[i%pool.length];
+      soundPoolIndex[name]=(i+1)%pool.length;
+      audio.pause();
+      audio.currentTime=0;
+      audio.muted=false;
       audio.volume=Math.max(0,Math.min(1,volume));
       audio.play().catch(()=>{});
     }catch{}
@@ -147,7 +175,7 @@
     const endsAt=Number(state?.lastTeamCountdown?.endsAt)||0;
     if(!endsAt)return '';
     const seconds=Math.max(0,Math.ceil((endsAt-Date.now())/1000));
-    return `<div class="last-team-countdown" title="Última dupla: concluam em 10 segundos ou a pontuação será zerada." role="timer" aria-live="polite"><small>ÚLTIMA<br>DUPLA</small><strong id="lastTeamCountdownNumber">${seconds}</strong></div>`;
+    return `<div class="last-team-countdown" title="Última dupla: concluam em 15 segundos. Se o prazo acabar, a pontuação obtida será dividida por 2." role="timer" aria-live="polite"><small>ÚLTIMA<br>DUPLA</small><strong id="lastTeamCountdownNumber">${seconds}</strong></div>`;
   }
   function setNotice(msg='') { notice=msg; render(); }
   function emitAck(event, payload, onOk) {
@@ -171,7 +199,7 @@
   function entryView() {
     const smartphone=entryMode==='smartphone';
     app.innerHTML = `<main class="entry-shell cover-screen entry-cover"><header class="entry-top header-lite">${topLinks(false)}</header><div class="cover-spotlight"><img src="/logo.png" alt="Rally Team" class="cover-spotlight-logo"></div><section class="entry-card cover-card">
-      <p class="eyebrow">Comunicação · precisão · velocidade</p><h1>${smartphone?'Piloto no papel. Copiloto no celular.':'Pilote sem ver a pista.'}</h1><p class="lead">${smartphone?'No modo Presencial, somente os Copilotos entram na sala. O Piloto desenha na folha de desenho e a câmera faz a correção pelo acetato virtual.':'Forme uma dupla com Piloto e Copiloto. O navegador vê o percurso; o piloto recebe apenas a folha.'}</p>
+      <p class="eyebrow">Comunicação · precisão · velocidade</p><h1>${smartphone?'Piloto no papel. Copiloto no celular.':'Pilote sem ver a pista.'}</h1><p class="lead">${smartphone?'No modo Presencial, somente os Copilotos entram na sala. O Piloto desenha na folha de desenho e a câmera faz a correção pelo acetato virtual.':'Forme uma dupla com Piloto e Copiloto. O Copiloto vê o percurso; o Piloto recebe apenas a folha de desenho.'}</p>
       <div class="mode-switch"><button type="button" data-entry-mode="online" class="${!smartphone?'active':''}">Jogar Online</button><button type="button" data-entry-mode="smartphone" class="${smartphone?'active':''}">Presencial</button></div>
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
       <label>Seu nome<input id="playerName" maxlength="24" value="${esc(identity.name||'')}" placeholder="Nome"></label>
@@ -179,8 +207,8 @@
       <button id="createRoom" class="primary-button wide">Criar sala ${smartphone?'Presencial':''}</button>
       <div class="divider"><span>ou entre em uma sala ${smartphone?'Presencial':''}</span></div>
       <div class="join-row"><input id="roomCode" maxlength="4" autocomplete="off" placeholder="CÓDIGO"><button id="joinRoom" class="secondary-button">Entrar</button></div>
-      <p class="helper">${smartphone?'A sala aceita de 1 a 4 Copilotos. Cada um joga ao lado de um Piloto com uma folha física.':'A dificuldade de uma sala existente é definida pelo anfitrião.'}</p>
-      ${smartphone?'<a class="sheet-download" href="/rally-team-folha-smartphone-a5.pdf" target="_blank">Baixar folha de desenho para impressão</a>':''}
+      <p class="helper">${smartphone?'A sala aceita de 1 a 4 Copilotos. Cada um joga ao lado de um Piloto com uma folha de desenho impressa.':'A dificuldade de uma sala existente é definida pelo anfitrião.'}</p>
+      ${smartphone?'<a class="sheet-download" href="https://drive.google.com/file/d/1NTREN6puV1vzGzoSEqJDpfxvFYwyMZxM/view?usp=sharing" target="_blank" rel="noopener">Baixar folha de desenho para impressão</a>':''}
       <a class="small-link" href="/device.html">Trocar versão</a>
     </section></main>`;
     const persistEntryFields=()=>{
@@ -227,11 +255,11 @@
   function smartphoneLobbyView() {
     const me=myPlayer();
     app.innerHTML=`<main class="lobby-shell"><header class="game-topbar">${brand()}<div class="room-pill">Sala <strong>${esc(state.code)}</strong></div>${topLinks(true,'Retornar')}</header>
-      <section class="lobby-card"><div class="lobby-head"><div><p class="eyebrow">Lobby Presencial · ${state.difficulty==='hard'?'Padrão':'Fácil'}</p><h1>Aguardando os Copilotos</h1><p>Cada pessoa conectada representa uma dupla física: Copiloto no celular e Piloto com papel e caneta.</p></div><div class="room-code-big"><small>Código</small><strong>${esc(state.code)}</strong><button id="copyCode">Copiar</button></div></div>
+      <section class="lobby-card"><div class="lobby-head"><div><p class="eyebrow">Lobby Presencial · ${state.difficulty==='hard'?'Padrão':'Fácil'}</p><h1>Aguardando os Copilotos</h1><p>Cada pessoa conectada representa uma dupla física: Copiloto no celular e Piloto com folha de desenho e caneta.</p></div><div class="room-code-big"><small>Código</small><strong>${esc(state.code)}</strong><button id="copyCode">Copiar</button></div></div>
       ${notice?`<div class="notice error">${esc(notice)}</div>`:''}
       <div class="smartphone-players">${state.players.map((p,i)=>`<article class="smartphone-player team-${p.color}"><span class="team-dot"></span><div><small>Dupla ${i+1}</small><strong>${esc(p.name)}</strong></div><span class="smartphone-role">Copiloto · Equipe ${COLOR_LABELS[p.color]}</span>${!p.connected?'<em>desconectado</em>':''}</article>`).join('')}</div>
       <div class="lobby-bottom"><div><strong>${state.players.length}</strong>/4 Copiloto${state.players.length===1?'':'s'} na sala</div>${me?.id===state.hostId?`<button id="startGame" class="primary-button" ${(state.canStart&&!startGamePending)?'':'disabled'}>${startGamePending?'Gerando pista…':'Iniciar partida'}</button>`:`<span class="waiting-host">${state.status==='starting'?'O anfitrião já iniciou. Aguarde…':'Aguardando o anfitrião iniciar'}</span>`}</div>
-      <p class="helper center">O anfitrião inicia quando todos os Copilotos desejados tiverem entrado. É possível jogar com 1, 2, 3 ou 4 duplas.</p><a class="sheet-download" href="/rally-team-folha-smartphone-a5.pdf" target="_blank">Abrir folha de desenho para impressão</a>
+      <p class="helper center">O anfitrião inicia quando todos os Copilotos desejados tiverem entrado. É possível jogar com 1, 2, 3 ou 4 duplas.</p><a class="sheet-download" href="https://drive.google.com/file/d/1NTREN6puV1vzGzoSEqJDpfxvFYwyMZxM/view?usp=sharing" target="_blank" rel="noopener">Abrir folha de desenho para impressão</a>
       </section>${(state.status==='starting'||startGamePending)?startingOverlayMarkup():''}</main>`;
     document.querySelector('#copyCode').onclick=async()=>{try{await navigator.clipboard.writeText(state.code);document.querySelector('#copyCode').textContent='Copiado!';setTimeout(()=>{const b=document.querySelector('#copyCode');if(b)b.textContent='Copiar';},1200);}catch{}};
     const st=document.querySelector('#startGame'); if(st) st.onclick=()=>requestStartGame();
@@ -262,7 +290,8 @@
     return `<header class="game-topbar">${brand()}<div class="race-meta"><span>Sala <strong>${esc(state.code)}</strong></span><span>${state.difficulty==='hard'?'Padrão':'Fácil'}</span><span class="team-name team-text-${me.color}">Equipe ${COLOR_LABELS[me.color]}</span><span>${roleLabel}</span></div>${topLinks(true,'Sair',true)}</header>`;
   }
   function paperMarkup(idPrefix, interactive=false) {
-    return `<div class="paper-wrap ${interactive?'interactive':''}"><div class="paper-tools-slot"></div><div class="a5-paper"><canvas class="paper-base" id="${idPrefix}Base" width="740" height="1050"></canvas><canvas class="draw-layer" id="${idPrefix}Draw" width="740" height="1050"></canvas>${interactive?'<div id="pointerDot" class="pointer-dot"></div>':''}</div></div>`;
+    const showFinalCountdown=state?.status==='racing'&&state?.lastTeamCountdown?.endsAt&&!myTeam()?.finishedAt;
+    return `<div class="paper-wrap ${interactive?'interactive':''}"><div class="paper-tools-slot"></div><div class="paper-sheet-shell"><div class="a5-paper"><canvas class="paper-base" id="${idPrefix}Base" width="740" height="1050"></canvas><canvas class="draw-layer" id="${idPrefix}Draw" width="740" height="1050"></canvas>${interactive?'<div id="pointerDot" class="pointer-dot"></div>':''}</div>${showFinalCountdown?lastTeamCountdownMarkup():''}</div></div>`;
   }
   function trackCardMarkup() {
     const advanced=!!state.track?.advancedSpecials?.gates?.length;
@@ -272,17 +301,31 @@
     const me=myPlayer(), team=myTeam();
     const prep=state.status==='prep', countdown=state.status==='countdown', racing=state.status==='racing';
     const finished=!!team?.finishedAt;
-    if(racing&&finished&&!team?.scanSubmitted){smartphoneScanView();return;}
+    if((racing&&finished&&!team?.scanSubmitted)||(state.status==='finished'&&team?.rescanPending)){smartphoneScanView();return;}
     const ready=!!me.ready;
     const sideNames={top:'linha vertical superior',right:'linha horizontal direita',bottom:'linha vertical inferior',left:'linha horizontal esquerda'};
     const start=team?.smartphoneStart||{side:state.track?.startSide,label:state.track?.startLabel};
     const raceClockValue=finished?fmtMs(team.elapsedMs):(racing?fmtMs(Date.now()-state.startedAt):'00:00.00');
-    app.innerHTML=`<main class="game-shell smartphone-game">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div>${racing&&!finished?lastTeamCountdownMarkup():''}</section>
+    const actionMarkup=prep
+      ? `<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'} smartphone-primary-action">${ready?'Pronto ✓':'Estou pronto'}</button><span>${ready?'Você está pronto. Aguardando os demais Copilotos.':'Confira a folha de desenho e sua largada antes de confirmar.'}</span>`
+      : countdown
+        ? '<span class="waiting-race">Prepare-se para a largada.</span>'
+        : racing&&!finished
+          ? `<button type="button" id="finishTeamBtn" class="primary-button finish-team-button smartphone-primary-action">Concluímos</button><small>Ao concluir, seu tempo para e a câmera será aberta para corrigir a folha de desenho.</small>`
+          : finished&&team?.timedOut
+            ? `<div class="finish-banner timeout-banner">TEMPO ESGOTADO · CORREÇÃO PENDENTE <small>Fotografe a folha de desenho. A pontuação obtida será dividida por 2.</small></div>`
+            : finished&&team?.scanSubmitted
+              ? `<div class="finish-banner">FOLHA ENVIADA · ${fmtMs(team.elapsedMs)} <small>Aguardando as demais duplas fotografarem suas folhas.</small></div>`
+              : '';
+    app.innerHTML=`<main class="game-shell smartphone-game">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div></section>
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
-      <section class="smartphone-stage"><div class="stage-head"><div><p class="eyebrow">Modo Presencial · Copiloto</p><h2>${racing?'Navegue o Piloto':'Prepare a etapa'}</h2></div><div class="live-badge">Piloto no papel físico</div></div>
-        <div class="smartphone-track-wrap"><div class="smartphone-track-card">${trackCardMarkup()}</div><div class="smartphone-instructions"><strong>Seu ponto de largada</strong><span>${esc(sideNames[start?.side]||'ponto indicado')}</span><b>${esc(start?.label||state.track?.startLabel||'')}</b><p>O Piloto inicia exatamente nesse ponto da cruz central da folha e percorre a pista no sentido horário.</p></div></div>
+      <section class="smartphone-stage"><div class="stage-head"><div><p class="eyebrow">Modo Presencial · Copiloto</p><h2>${racing?'Oriente o Piloto':'Prepare a etapa'}</h2></div><div class="live-badge">Piloto na folha de desenho</div></div>
+        <div class="smartphone-track-wrap">
+          <div class="smartphone-track-card"><div class="smartphone-track-sheet">${trackCardMarkup()}${racing&&!finished?lastTeamCountdownMarkup():''}</div></div>
+          <section class="ready-zone smartphone-action-zone">${actionMarkup}</section>
+          <div class="smartphone-instructions"><strong>Seu ponto de largada</strong><span>${esc(sideNames[start?.side]||'ponto indicado')}</span><b>${esc(start?.label||state.track?.startLabel||'')}</b><p>O Piloto inicia exatamente nesse ponto da cruz central da folha de desenho e percorre a pista no sentido horário.</p></div>
+        </div>
       </section>
-      <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${ready?'Você está pronto. Aguardando os demais Copilotos.':'Confira a folha do Piloto e sua largada antes de confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="primary-button finish-team-button">Concluímos</button><small>Ao concluir, seu tempo para e a câmera será aberta para corrigir a folha física.</small>`:''}${finished&&team?.timedOut?`<div class="finish-banner timeout-banner">TEMPO ESGOTADO · 0 PONTOS <small>A dupla não concluiu dentro dos 10 segundos finais.</small></div>`:finished&&team?.scanSubmitted?`<div class="finish-banner">FOLHA ENVIADA · ${fmtMs(team.elapsedMs)} <small>Aguardando as demais duplas fotografarem suas folhas.</small></div>`:''}</section>
       ${(countdown || (racing && rallyFlashUntil>Date.now()))?`<div id="countdownOverlay" class="countdown-overlay"><div><small>${countdown?'LARGADA EM':' '}</small><strong id="countdownNumber">${countdown?'10':'RALLY!'}</strong></div></div>`:''}
     </main>`;
     if(state.track?.points)drawTrack('trackCanvas',state.track);
@@ -316,10 +359,10 @@
       ? `<section class="pilot-stage"><div class="stage-head"><div><p class="eyebrow">Piloto</p><h2>${racing?'Desenhe o percurso':'Prepare a folha'}</h2></div>${racing&&!finished?`<div class="draw-tools"><button data-tool="draw" class="tool-btn ${tool==='draw'?'active':''}">✎ Desenhar</button><button data-tool="erase" class="tool-btn ${tool==='erase'?'active':''}">⌫ Borracha</button></div>`:''}</div>${paperMarkup('pilot',true)}<p class="paper-caption">Início: <strong>${esc(state.track?.startLabel||'')}</strong> · percurso no sentido horário.</p></section>`
       : `<section class="copilot-stage"><div class="stage-head"><div><p class="eyebrow">Copiloto</p><h2>Acompanhe e navegue</h2></div><div class="live-badge">● desenho ao vivo</div></div><div class="copilot-layout">${paperMarkup('copilot',false)}${trackCardMarkup()}</div></section>`;
     const raceClockValue=finished?fmtMs(team.finishedAt-state.startedAt):(racing?fmtMs(Date.now()-state.startedAt):'00:00.00');
-    app.innerHTML=`<main class="game-shell">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div>${racing&&!finished?lastTeamCountdownMarkup():''}</section>
+    app.innerHTML=`<main class="game-shell">${raceHeader()}<section class="race-status"><div class="timer-card"><small>Tempo</small><strong id="raceClock">${raceClockValue}</strong></div></section>
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
       ${roleMain}
-      <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${team?.pilot?.ready&&team?.copilot?.ready?'Sua dupla está pronta.':'Piloto e Copiloto precisam confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="${myConfirmed?'secondary-button':'primary-button'} finish-team-button" ${myConfirmed?'disabled aria-disabled="true"':''}>${myConfirmed?'Você confirmou ✓':'Concluímos'}</button><div class="finish-status"><span>Piloto: <strong>${team?.pilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><span>Copiloto: <strong>${team?.copilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><small>${myConfirmed?`Aguardando ${mateRoleLabel} confirmar.`:mateConfirmed?`${mateRoleLabel} já confirmou. Você pode concluir agora, mesmo com o desenho incompleto ou vazio.`:'A conclusão não depende do desenho. Piloto e Copiloto apenas confirmam quando quiserem encerrar.'}</small></div>`:''}${finished&&team?.timedOut?`<div class="finish-banner timeout-banner">TEMPO ESGOTADO · 0 PONTOS <small>Os dois integrantes não confirmaram dentro dos 10 segundos finais.</small></div>`:finished?`<div class="finish-banner">CONCLUÍDO · ${fmtMs(team.finishedAt-state.startedAt)} <small>Desenho bloqueado. Aguardando as demais duplas concluírem.</small></div>`:''}</section>
+      <section class="ready-zone">${prep?`<button type="button" id="readyBtn" class="${ready?'secondary-button ready-active':'primary-button'}">${ready?'Pronto ✓':'Estou pronto'}</button><span>${team?.pilot?.ready&&team?.copilot?.ready?'Sua dupla está pronta.':'Piloto e Copiloto precisam confirmar.'}</span>`:''}${countdown?'<span class="waiting-race">Prepare-se para a largada.</span>':''}${racing&&!finished?`<button type="button" id="finishTeamBtn" class="${myConfirmed?'secondary-button':'primary-button'} finish-team-button" ${myConfirmed?'disabled aria-disabled="true"':''}>${myConfirmed?'Você confirmou ✓':'Concluímos'}</button><div class="finish-status"><span>Piloto: <strong>${team?.pilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><span>Copiloto: <strong>${team?.copilotConfirmed?'confirmou ✓':'aguardando'}</strong></span><small>${myConfirmed?`Aguardando ${mateRoleLabel} confirmar.`:mateConfirmed?`${mateRoleLabel} já confirmou. Você pode concluir agora, mesmo com o desenho incompleto ou vazio.`:'A conclusão não depende do desenho. Piloto e Copiloto apenas confirmam quando quiserem encerrar.'}</small></div>`:''}${finished&&team?.timedOut?`<div class="finish-banner timeout-banner">TEMPO ESGOTADO · 50% DA PONTUAÇÃO <small>A dupla não concluiu dentro dos 15 segundos finais. O desenho será corrigido normalmente e o total será dividido por 2.</small></div>`:finished?`<div class="finish-banner">CONCLUÍDO · ${fmtMs(team.finishedAt-state.startedAt)} <small>Desenho bloqueado. Aguardando as demais duplas concluírem.</small></div>`:''}</section>
       ${(countdown || (racing && rallyFlashUntil>Date.now()))?`<div id="countdownOverlay" class="countdown-overlay"><div><small>${countdown?'LARGADA EM':' '}</small><strong id="countdownNumber">${countdown?'10':'RALLY!'}</strong></div></div>`:''}
     </main>`;
     const ownOps=state.drawings?.[me.color] || [];
@@ -375,33 +418,42 @@
 
   function smartphoneScanView() {
     const team=myTeam();
-    app.innerHTML=`<main class="game-shell scan-game">${raceHeader()}<section class="scan-stage"><div class="scan-head"><div><p class="eyebrow">Etapa concluída · ${fmtMs(team?.elapsedMs)}</p><h2>Fotografe a folha do Piloto</h2><p>Posicione a câmera frontalmente para a folha. O sistema precisa reconhecer e circular os 4 cantos da folha na sua foto para validar.</p></div></div>
+    const isRescan=!!team?.rescanPending;
+    const timedOut=!!team?.timedOut;
+    app.innerHTML=`<main class="game-shell scan-game">${raceHeader()}<section class="scan-stage"><div class="scan-head"><div><p class="eyebrow">${isRescan?'Nova correção':'Etapa concluída'} · ${fmtMs(team?.elapsedMs)}</p><h2>${isRescan?'Fotografe novamente a folha do Piloto':'Fotografe a folha do Piloto'}</h2><p>Posicione a câmera frontalmente para a folha de desenho. O sistema precisa reconhecer e circular os 4 cantos da folha na sua foto para validar.</p></div></div>
       ${notice?`<div class="notice error compact">${esc(notice)}</div>`:''}
+      ${timedOut&&!isRescan?`<div class="finish-banner timeout-banner">O SEU TEMPO ACABOU <small>O tempo foi encerrado aos 15 segundos finais. Fotografe a folha: o sistema corrigirá normalmente o que foi desenhado e dividirá a pontuação final por 2.</small></div>`:''}
       <div class="scan-grid"><div class="scan-capture"><label class="primary-button camera-button" for="physicalPhoto">Abrir câmera / escolher foto</label><input id="physicalPhoto" type="file" accept="image/*" capture="environment" hidden><p class="helper">Prefira caneta preta ou azul-escura e fotografe a folha inteira, com os quatro marcadores visíveis.</p><canvas id="scanSourceCanvas" class="scan-source" width="480" height="680"></canvas><div class="scan-marker-status" id="scanMarkerStatus">Aguardando fotografia.</div><button id="manualMarkersBtn" class="secondary-button" type="button" disabled>Ajustar marcadores manualmente</button></div>
-      <div class="scan-preview"><h3>Leitura normalizada</h3><div class="scan-paper"><img id="scanPreview" alt="Traço detectado na folha de desenho"></div><p id="scanSummary" class="helper">Depois da foto, o desenho detectado aparecerá aqui.</p><button id="submitScanBtn" class="primary-button wide" type="button" ${scanAnalysis?'':'disabled'}>Enviar para correção</button></div></div>
-      <div class="ready-zone"><small>Seu tempo já está parado. A pontuação aparece quando todas as duplas enviarem suas folhas.</small></div></section></main>`;
-    if(scanSourceImage)drawSourceImageToCanvas(scanSourceImage,manualMarkerPoints);
+      <div class="scan-preview"><h3>Leitura normalizada</h3><div class="scan-paper"><img id="scanPreview" alt="Traço detectado na folha de desenho"></div><div class="scan-rotate-actions"><button id="rotateScanLeft" class="secondary-button" type="button" disabled>↶ Girar leitura</button><button id="rotateScanRight" class="secondary-button" type="button" disabled>Girar leitura ↷</button></div><p id="scanSummary" class="helper">Depois da foto, o desenho detectado aparecerá aqui. Confira se a folha está na vertical e com o topo para cima.</p><button id="submitScanBtn" class="primary-button wide" type="button" ${scanAnalysis?'':'disabled'}>${isRescan?'Atualizar correção':'Enviar para correção'}</button></div></div>
+      <div class="ready-zone scan-bottom-zone"><small>Seu tempo já está parado. ${isRescan?'A nova foto substituirá somente a leitura anterior; tempo e ordem de chegada serão preservados.':timedOut?'Seu tempo já está parado. Após a foto, a pontuação normal desta folha será calculada e o resultado final será 50% desse valor.':'A pontuação aparece quando todas as duplas enviarem suas folhas.'}</small>${isRescan?'<button id="cancelRescanFlow" class="secondary-button" type="button">Voltar ao resultado sem alterar</button>':''}</div></section></main>`;
+    if(scanSourceImage)drawSourceImageToCanvas(scanSourceImage,scanAnalysis?.rawSourceMarkers||manualMarkerPoints);
+    const updateScanUi=()=>{
+      const left=document.querySelector('#rotateScanLeft'),right=document.querySelector('#rotateScanRight');
+      if(left)left.disabled=!scanAnalysis;if(right)right.disabled=!scanAnalysis;
+      if(scanAnalysis){
+        const img=document.querySelector('#scanPreview');if(img)img.src=scanAnalysis.scanImage;
+        const summary=document.querySelector('#scanSummary');if(summary)summary.textContent=`${scanAnalysis.cells.length} células com traço detectado. Confira a orientação e o desenho antes de enviar.`;
+        const submit=document.querySelector('#submitScanBtn');if(submit)submit.disabled=false;
+      }
+    };
     if(scanAnalysis){
-      const img=document.querySelector('#scanPreview');if(img)img.src=scanAnalysis.scanImage;
-      const summary=document.querySelector('#scanSummary');if(summary)summary.textContent=`${scanAnalysis.cells.length} células com traço detectado na folha.`;
-      const submit=document.querySelector('#submitScanBtn');if(submit)submit.disabled=false;
       const status=document.querySelector('#scanMarkerStatus');if(status)status.textContent='Folha reconhecida e alinhada.';
+      updateScanUi();
     }
     const input=document.querySelector('#physicalPhoto');
     input.onchange=async()=>{
       const file=input.files?.[0];if(!file)return;
-      scanAnalysis=null;manualMarkerMode=false;manualMarkerPoints=[];
-      const status=document.querySelector('#scanMarkerStatus');status.textContent='Analisando marcadores e corrigindo perspectiva…';
+      scanAnalysis=null;manualMarkerMode=false;manualMarkerPoints=[];scanRotationQuarterTurns=0;
+      const status=document.querySelector('#scanMarkerStatus');status.textContent='Analisando marcadores, orientação e perspectiva…';
       try{
         const loaded=await loadImageFile(file);scanSourceImage=loaded;
         drawSourceImageToCanvas(loaded,[]);
         document.querySelector('#manualMarkersBtn').disabled=false;
-        scanAnalysis=await analyzePhysicalSheet(loaded,null,state.difficulty);
-        document.querySelector('#scanPreview').src=scanAnalysis.scanImage;
-        document.querySelector('#scanSummary').textContent=`${scanAnalysis.cells.length} células com traço detectado. Confira visualmente antes de enviar.`;
-        status.textContent='✓ Quatro marcadores detectados automaticamente.';
-        document.querySelector('#submitScanBtn').disabled=false;
-        drawSourceImageToCanvas(loaded,scanAnalysis.sourceMarkers);
+        scanAnalysis=await analyzePhysicalSheet(loaded,null,state.difficulty,false,null);
+        scanRotationQuarterTurns=scanAnalysis.orientationQuarterTurns||0;
+        status.textContent=scanAnalysis.autoRotated?'✓ Quatro marcadores detectados. A orientação vertical foi corrigida automaticamente.':'✓ Quatro marcadores detectados automaticamente.';
+        drawSourceImageToCanvas(loaded,scanAnalysis.rawSourceMarkers);
+        updateScanUi();
       }catch(err){
         status.textContent=`Não consegui localizar os quatro marcadores automaticamente. ${err.message||''} Use o ajuste manual.`;
         document.querySelector('#submitScanBtn').disabled=true;
@@ -409,10 +461,11 @@
     };
     document.querySelector('#manualMarkersBtn').onclick=()=>{
       if(!scanSourceImage)return;
-      manualMarkerMode=true;manualMarkerPoints=[];scanAnalysis=null;
+      manualMarkerMode=true;manualMarkerPoints=[];scanAnalysis=null;scanRotationQuarterTurns=0;
       drawSourceImageToCanvas(scanSourceImage,[]);
       document.querySelector('#scanMarkerStatus').textContent='Toque nos marcadores nesta ordem: superior esquerdo → superior direito → inferior direito → inferior esquerdo.';
       document.querySelector('#submitScanBtn').disabled=true;
+      document.querySelector('#rotateScanLeft').disabled=true;document.querySelector('#rotateScanRight').disabled=true;
     };
     const sourceCanvas=document.querySelector('#scanSourceCanvas');
     sourceCanvas.onclick=async e=>{
@@ -424,19 +477,38 @@
       if(manualMarkerPoints.length<4){document.querySelector('#scanMarkerStatus').textContent=`Marcador registrado. Agora toque no ${names[manualMarkerPoints.length-1]}.`;return;}
       manualMarkerMode=false;
       try{
-        scanAnalysis=await analyzePhysicalSheet(scanSourceImage,manualMarkerPoints,state.difficulty,true);
-        document.querySelector('#scanPreview').src=scanAnalysis.scanImage;
-        document.querySelector('#scanSummary').textContent=`${scanAnalysis.cells.length} células com traço detectado. Marcadores ajustados manualmente.`;
-        document.querySelector('#scanMarkerStatus').textContent='✓ Perspectiva corrigida pelos quatro pontos informados.';
-        document.querySelector('#submitScanBtn').disabled=false;
+        scanAnalysis=await analyzePhysicalSheet(scanSourceImage,manualMarkerPoints,state.difficulty,true,null);
+        scanRotationQuarterTurns=scanAnalysis.orientationQuarterTurns||0;
+        document.querySelector('#scanMarkerStatus').textContent=scanAnalysis.autoRotated?'✓ Perspectiva e orientação vertical corrigidas pelos quatro pontos informados.':'✓ Perspectiva corrigida pelos quatro pontos informados.';
+        updateScanUi();
       }catch(err){document.querySelector('#scanMarkerStatus').textContent='Não foi possível processar esses quatro pontos. Tente novamente.';}
+    };
+    const rotateAnalysis=async delta=>{
+      if(!scanAnalysis||!scanSourceImage)return;
+      try{
+        scanRotationQuarterTurns=(scanRotationQuarterTurns+delta+4)%4;
+        scanAnalysis=await analyzePhysicalSheet(scanSourceImage,scanAnalysis.rawSourceMarkers,state.difficulty,true,scanRotationQuarterTurns);
+        const status=document.querySelector('#scanMarkerStatus');if(status)status.textContent='Orientação ajustada manualmente. Confira a prévia antes de enviar.';
+        updateScanUi();
+      }catch{notice='Não foi possível girar a leitura desta foto.';render();}
+    };
+    document.querySelector('#rotateScanLeft').onclick=()=>rotateAnalysis(-1);
+    document.querySelector('#rotateScanRight').onclick=()=>rotateAnalysis(1);
+    const cancelRescanFlow=document.querySelector('#cancelRescanFlow');
+    if(cancelRescanFlow)cancelRescanFlow.onclick=()=>{
+      cancelRescanFlow.disabled=true;
+      socket.emit('cancelSmartphoneRescan',{},res=>{
+        if(!res?.ok){notice=res?.error||'Não foi possível voltar ao resultado.';render();return;}
+        scanAnalysis=null;scanSourceImage=null;manualMarkerPoints=[];scanRotationQuarterTurns=0;
+        if(res.state){state=res.state;render();}
+      });
     };
     document.querySelector('#submitScanBtn').onclick=()=>{
       if(!scanAnalysis)return;
-      const btn=document.querySelector('#submitScanBtn');btn.disabled=true;btn.textContent='Enviando…';
+      const btn=document.querySelector('#submitScanBtn');btn.disabled=true;btn.textContent=isRescan?'Atualizando…':'Enviando…';
       socket.emit('submitSmartphoneScan',{cells:scanAnalysis.cells,scanImage:scanAnalysis.scanImage},res=>{
-        if(!res?.ok){notice=res?.error||'Não foi possível enviar a folha.';btn.disabled=false;btn.textContent='Enviar para correção';render();return;}
-        notice='';scanAnalysis=null;scanSourceImage=null;manualMarkerPoints=[];
+        if(!res?.ok){notice=res?.error||'Não foi possível enviar a folha.';btn.disabled=false;btn.textContent=isRescan?'Atualizar correção':'Enviar para correção';render();return;}
+        notice='';scanAnalysis=null;scanSourceImage=null;manualMarkerPoints=[];scanRotationQuarterTurns=0;
         if(res.state){state=res.state;render();}
       });
     };
@@ -464,13 +536,13 @@
         : ranking.length===2
           ? 'Bônus de chegada: 1º +7 · 2º +0.'
           : 'Sem bônus de chegada em partida com uma única dupla.';
-    const advancedRule=state.difficulty==='hard'?' No Avançado, bônus verdes somam se o traço alcançar a célula correta; revés vermelhos subtraem se o traço entrar na célula lateral.':'';
-    const lastTeamRule=ranking.length>1?' Quando resta apenas uma dupla sem concluir, ela tem 10 segundos para encerrar; se o prazo acabar, sua pontuação total é zerada.':'';
+    const advancedRule=state.difficulty==='hard'?' No Padrão, bônus verdes somam se o traço alcançar a célula correta; revés vermelhos subtraem se o traço entrar na célula lateral.':'';
+    const lastTeamRule=ranking.length>1?' Quando resta apenas uma dupla sem concluir, ela tem 15 segundos para encerrar; se o prazo acabar, o que ela pontuou é calculado normalmente e o resultado final vale 50% desse total.':'';
     const advancedScore=state.difficulty==='hard';
     app.innerHTML=`<main class="result-shell">${raceHeader()}<section class="result-card"><p class="eyebrow">Resultado da etapa</p><h1>${ranking[0]?`Equipe ${COLOR_LABELS[ranking[0].color]} vence!${winnerNames?` <span class="winner-names">${esc(winnerNames)}</span>`:''}`:'Resultado'}</h1>
       <p class="helper center">Correção pelo acetato virtual · ${gridLabel}. Cada célula correta alcançada vale 1 ponto. ${finishRule}${advancedRule}${lastTeamRule}</p>
-      <div class="score-table ${advancedScore?'advanced-score':''}"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span>${advancedScore?'<span>Especiais</span>':''}<span>Chegada</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row ${r.timedOut?'timed-out-row':''}"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}${resultTeamNames(r)?`<small class="result-team-names">${esc(resultTeamNames(r))}</small>`:''}</span><span>${r.timedOut?'0 (tempo)':`${r.routeScore}/${r.targetCellCount}`}</span>${advancedScore?`<span class="advanced-score-cell">${r.timedOut?'<b class="adv-minus">ZERADO</b>':`<b class="adv-plus">+${r.advancedBonus||0}</b> <b class="adv-minus">${r.advancedPenalty||0}</b>`}</span>`:''}<span>${r.timedOut?'Prazo esgotado':`${r.finishPlace?`${r.finishPlace}º · `:''}+${r.bonus}`}</span><strong>${r.total}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
-      <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>${resultTeamLabel(r)}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div style="display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin-top:10px"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button><span>${r.timedOut?`<strong>0 pontos</strong> · prazo final esgotado · ${fmtMs(r.elapsedMs)}`:`<strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos${state.difficulty==='hard'?` · especiais +${r.advancedBonus||0} ${r.advancedPenalty||0}`:''} · ${r.finishPlace?`${r.finishPlace}º a concluir · `:''}+${r.bonus} chegada · ${fmtMs(r.elapsedMs)}`}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
+      <div class="score-table ${advancedScore?'advanced-score':''}"><div class="score-row head"><span>#</span><span>Equipe</span><span>Percurso</span>${advancedScore?'<span>Especiais</span>':''}<span>Chegada</span><span>Total</span><span>Tempo</span></div>${ranking.map(r=>`<div class="score-row ${r.timedOut?'timed-out-row':''}"><strong>${r.place}º</strong><span class="team-text-${r.color}">● ${COLOR_LABELS[r.color]}${resultTeamNames(r)?`<small class="result-team-names">${esc(resultTeamNames(r))}</small>`:''}</span><span>${r.routeScore}/${r.targetCellCount}</span>${advancedScore?`<span class="advanced-score-cell"><b class="adv-plus">+${r.advancedBonus||0}</b> <b class="adv-minus">${r.advancedPenalty||0}</b></span>`:''}<span>${r.finishPlace?`${r.finishPlace}º · `:''}+${r.bonus}</span><strong>${r.total}${r.timedOut?` <small class="timeout-half-label">(50% de ${r.timeoutBaseTotal})</small>`:''}</strong><span>${fmtMs(r.elapsedMs)}</span></div>`).join('')}</div>
+      <div class="result-gallery"><article><h3>Pista original</h3><div class="result-paper"><canvas id="resultOriginal" width="740" height="1050"></canvas></div><p>${ranking[0]?.targetCellCount ?? '—'} células válidas nesta pista</p></article>${ranking.map(r=>`<article><h3>${resultTeamLabel(r)}</h3><div class="result-paper"><canvas id="result-${r.color}" width="740" height="1050"></canvas></div><div class="result-team-actions"><button type="button" class="secondary-button acetate-toggle" data-color="${r.color}" data-visible="true">Ocultar acetato</button>${state.mode==='smartphone'&&me?.color===r.color?`<button type="button" id="rescanResultBtn" class="${rescanConfirm?'primary-button':'secondary-button'} rescan-result-button">${rescanConfirm?'Confirmar nova correção':'Corrigir com nova foto'}</button>${rescanConfirm?'<button type="button" id="cancelRescanBtn" class="secondary-button">Cancelar</button>':''}`:''}<span>${r.timedOut?`<strong>${r.total} pontos</strong> · 50% de ${r.timeoutBaseTotal} após prazo esgotado · <strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos${state.difficulty==='hard'?` · especiais +${r.advancedBonus||0} ${r.advancedPenalty||0}`:''} · ${fmtMs(r.elapsedMs)}`:`<strong>${r.routeScore}/${r.targetCellCount}</strong> quadrados corretos${state.difficulty==='hard'?` · especiais +${r.advancedBonus||0} ${r.advancedPenalty||0}`:''} · ${r.finishPlace?`${r.finishPlace}º a concluir · `:''}+${r.bonus} chegada · ${fmtMs(r.elapsedMs)}`}</span></div><p class="helper center">Acetato: transparente = acerto · branco = quadrado válido da pista não alcançado · escuro = fora da pista · vermelho = pista original.</p></article>`).join('')}</div>
       <div class="result-actions">${me.id===state.hostId?`<button id="restartGame" class="primary-button" ${(restartGamePending||state.restarting)?'disabled':''}>${(restartGamePending||state.restarting)?'Gerando nova pista…':'Reiniciar partida'}</button>`:`<span>${state.restarting?'O anfitrião está gerando uma nova pista…':'Aguardando o anfitrião para reiniciar.'}</span>`}<button id="leaveResult" class="secondary-button">Sair</button></div></section></main>`;
     drawTrack('resultOriginal', state.track);
     for(const r of ranking){
@@ -490,6 +562,17 @@
         else drawResultWithAcetate(`result-${color}`, state.track?.start, row.ops || [], row.acetate, next);
       };
     });
+    const rescanBtn=document.querySelector('#rescanResultBtn');
+    if(rescanBtn)rescanBtn.onclick=()=>{
+      if(!rescanConfirm){rescanConfirm=true;render();return;}
+      rescanBtn.disabled=true;rescanBtn.textContent='Abrindo câmera…';
+      socket.emit('requestSmartphoneRescan',{},res=>{
+        if(!res?.ok){rescanConfirm=false;notice=res?.error||'Não foi possível iniciar uma nova correção.';render();return;}
+        rescanConfirm=false;scanAnalysis=null;scanSourceImage=null;manualMarkerPoints=[];scanRotationQuarterTurns=0;
+        if(res.state){state=res.state;render();}
+      });
+    };
+    const cancelRescan=document.querySelector('#cancelRescanBtn');if(cancelRescan)cancelRescan.onclick=()=>{rescanConfirm=false;render();};
     const restart=document.querySelector('#restartGame'); if(restart&&!restart.disabled) restart.onclick=()=>requestRestartGame();
     document.querySelector('#leaveResult').onclick=()=>leaveRoom();
     bindLoadingExit();
@@ -500,10 +583,11 @@
     stopTimers();
     if(!state) { if(!introSeen) introView(); else entryView(); }
     else if(state.status==='lobby' || state.status==='starting') lobbyView();
+    else if(state.status==='finished' && state.mode==='smartphone' && myTeam()?.rescanPending) smartphoneScanView();
     else if(state.status==='finished') resultView();
     else prepRaceView();
     if(state?.status==='finished' && timeoutResultFlashUntil>Date.now()) {
-      app.insertAdjacentHTML('beforeend', `<div class="timeout-result-flash" role="alert" aria-live="assertive"><strong>O SEU TEMPO ACABOU</strong><small>A partida foi encerrada automaticamente.</small></div>`);
+      app.insertAdjacentHTML('beforeend', `<div class="timeout-result-flash" role="alert" aria-live="assertive"><strong>O SEU TEMPO ACABOU</strong><small>Sua pontuação obtida foi calculada e dividida por 2.</small></div>`);
     }
     if (state && (state.restarting || restartGamePending) && !document.querySelector('.start-loading-overlay')) {
       app.insertAdjacentHTML('beforeend', startingOverlayMarkup(true));
@@ -784,13 +868,42 @@
     const small=document.createElement('canvas');small.width=370;small.height=525;const sctx=small.getContext('2d');sctx.imageSmoothingEnabled=true;sctx.drawImage(preview,0,0,small.width,small.height);
     return {cells,scanImage:small.toDataURL('image/png')};
   }
-  async function analyzePhysicalSheet(img,manualMarkers,difficulty,manual=false){
+  function markerQuadSize(markers){
+    const d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+    return {width:(d(markers[0],markers[1])+d(markers[3],markers[2]))/2,height:(d(markers[0],markers[3])+d(markers[1],markers[2]))/2};
+  }
+  function rotateMarkerOrder(markers,quarterTurns){
+    const q=((quarterTurns%4)+4)%4;
+    return markers.slice(q).concat(markers.slice(0,q));
+  }
+  function sheetFooterOrientationScore(canvas){
+    const ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height,img=ctx.getImageData(0,0,W,H).data;
+    const density=(from,to)=>{let dark=0,total=0;const y0=Math.floor(H*from),y1=Math.ceil(H*to);for(let y=y0;y<y1;y+=2)for(let x=0;x<W;x+=2){const i=(y*W+x)*4;const lum=.2126*img[i]+.7152*img[i+1]+.0722*img[i+2];if(lum<112)dark++;total++;}return total?dark/total:0;};
+    // A folha impressa possui mais elementos fixos na região inferior (logo/QR/rodapé).
+    // Isso ajuda a decidir entre 90° horário e anti-horário sem depender do EXIF do celular.
+    return density(.76,.98)-density(.02,.24);
+  }
+  function chooseAutomaticSheetRotation(source,rawMarkers){
+    const quad=markerQuadSize(rawMarkers);
+    if(quad.width<=quad.height)return 0;
+    const candidates=[1,3].map(q=>{
+      const preview=warpPerspective(source,rotateMarkerOrder(rawMarkers,q),220,312);
+      return {q,score:sheetFooterOrientationScore(preview)};
+    });
+    candidates.sort((a,b)=>b.score-a.score);
+    return candidates[0].q;
+  }
+  async function analyzePhysicalSheet(img,manualMarkers,difficulty,manual=false,rotationOverride=null){
     const size=scanWorkSize||sourceCanvasSize(img),source=document.createElement('canvas');source.width=size.width;source.height=size.height;source.getContext('2d').drawImage(img,0,0,source.width,source.height);
-    let markers;
-    if(manual&&manualMarkers?.length===4)markers=manualMarkers.map(p=>({x:p.x,y:p.y}));
-    else markers=detectCornerMarkers(source);
-    const warped=warpPerspective(source,markers,740,1050),extracted=extractInkAndCells(warped,difficulty);
-    return {...extracted,sourceMarkers:markers};
+    let rawMarkers;
+    if(manual&&manualMarkers?.length===4)rawMarkers=manualMarkers.map(p=>({x:p.x,y:p.y}));
+    else rawMarkers=detectCornerMarkers(source);
+    // A folha de desenho é sempre vertical. Se o quadrilátero vier horizontal, corrigimos
+    // a ordem dos cantos antes da homografia em vez de deformar a foto horizontal para vertical.
+    const q=rotationOverride===null?chooseAutomaticSheetRotation(source,rawMarkers):((rotationOverride%4)+4)%4;
+    const orderedMarkers=rotateMarkerOrder(rawMarkers,q);
+    const warped=warpPerspective(source,orderedMarkers,740,1050),extracted=extractInkAndCells(warped,difficulty);
+    return {...extracted,sourceMarkers:orderedMarkers,rawSourceMarkers:rawMarkers,orientationQuarterTurns:q,autoRotated:rotationOverride===null&&q!==0};
   }
 
   function startTimers(){
@@ -800,7 +913,7 @@
     if(state?.status==='racing'&&state.lastTeamCountdown?.endsAt&&!team?.finishedAt){const tickLast=()=>{const el=document.querySelector('#lastTeamCountdownNumber');if(!el)return;const remain=Math.max(0,Number(state.lastTeamCountdown.endsAt)-Date.now());if(remain<=0){el.textContent='ACABOU';const box=el.closest('.last-team-countdown');if(box){box.classList.add('expired');const small=box.querySelector('small');if(small)small.innerHTML='O SEU<br>TEMPO';}if(lastTeamCountdownTimer){clearInterval(lastTeamCountdownTimer);lastTeamCountdownTimer=null;}return;}el.textContent=String(Math.max(0,Math.ceil(remain/1000)));};tickLast();lastTeamCountdownTimer=setInterval(tickLast,80);}
   }
   function stopTimers(){if(raceTimer)clearInterval(raceTimer);if(countdownTimer)clearInterval(countdownTimer);if(lastTeamCountdownTimer)clearInterval(lastTeamCountdownTimer);raceTimer=null;countdownTimer=null;lastTeamCountdownTimer=null;}
-  function leaveRoom(){emitAck('leaveRoom',{},()=>{state=null;scanAnalysis=null;scanSourceImage=null;manualMarkerPoints=[];clearIdentity();notice='';exitConfirm=false;render();});}
+  function leaveRoom(){emitAck('leaveRoom',{},()=>{state=null;scanAnalysis=null;scanSourceImage=null;manualMarkerPoints=[];scanRotationQuarterTurns=0;rescanConfirm=false;clearIdentity();notice='';exitConfirm=false;render();});}
   function bindExit(){const b=document.querySelector('#exitRoom');if(!b)return;b.onclick=()=>{if(!exitConfirm){exitConfirm=true;b.textContent='Confirmar saída';setTimeout(()=>{exitConfirm=false;const x=document.querySelector('#exitRoom');if(x)x.textContent='Sair';},2500);}else leaveRoom();};}
 
   socket.on('roomState', next => {
@@ -810,6 +923,7 @@
     if(previousStatus==='countdown'&&next.status==='racing')triggerRallyFlash();
     if (next.status !== 'lobby') startGamePending = false;
     if (!next.restarting && next.status !== 'finished') restartGamePending = false;
+    if (next.status !== 'finished') rescanConfirm = false;
     const me=next.players.find(p=>p.id===identity.playerId);
     if(me){entryMode=next.mode||entryMode;saveIdentity({roomCode:next.code,name:me.name,mode:entryMode});}
     const ownTeam = me?.color ? next.teams?.[me.color] : null;
